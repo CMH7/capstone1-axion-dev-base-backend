@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+type UsersSubjects {
+  color      String
+  id         Int
+  isFavorite Boolean
+  name       String
+  workspaces UsersWorkspaces[]
+  owned      Boolean
+}
+
+type UsersWorkspaces {
+  boards     UsersBoards[]
+  color      String
+  id         Int
+  isFavorite Boolean
+  members    UsersWorkspacesMembers[]
+  name       String
+  owned      Boolean
+}
+
+type UsersWorkspacesMembers {
+  id      Int
+  name    String
+  profile String
+}
+
+type UsersBoards {
+  color     String
+  createdBy String
+  createdOn DateTime
+  id        Int
+  name      String
+  tasks     UsersTasks[]
+}
+
+type UsersTasks {
+  createdBy    String
+  createdOn    DateTime
+  description  String
+  dueDateTime  DateTime
+  id           Int
+  isFavorite   Boolean
+  isSubtask    Boolean
+  level        Int
+  members      UsersTasksMembers[]
+  name         String
+  status       String
+  subtasks     UsersTasksSubtasks[]
+}
+
+type UsersTasksMembers {
+  id      Int
+  name    String
+  profile String
+}
+
+type UsersTasksSubtasks {
+  createdBy   String
+  createdOn   DateTime
+  description String
+  dueDateTime DateTime
+  id          Int
+  isFavorite  Boolean
+  members     UsersTasksSubtasksMembers[]
+  name        String
+  status      String
+}
+
+type UsersTasksSubtasksMembers {
+  id      Int
+  name    String
+  profile String
+}
+
+model users {
+  id         String            @id @default(auto()) @map("_id") @db.ObjectId
+  age        Int
+  course     String
+  email      String
+  firstName  String
+  gender     String
+  lastName   String
+  password   String
+  profile    String
+  school     String
+  subjects   UsersSubjects[]
+  useHint    Boolean
+  year       Int
+  lastActive DateTime
+}
