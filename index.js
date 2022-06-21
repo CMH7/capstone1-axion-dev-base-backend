@@ -24,7 +24,7 @@ async function disconn() {
 }
 
 // PORT
-const port = 8080;
+const port = env.PORT || 8080
 
 // === SERVER ===
 
