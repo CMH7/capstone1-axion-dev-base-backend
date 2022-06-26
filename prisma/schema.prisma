@@ -7,92 +7,133 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-type UsersSubjects {
-  color      String
-  id         Int
-  isFavorite Boolean
-  name       String
-  workspaces UsersWorkspaces[]
-  owned      Boolean
+type AccountsSubjects {
+  color                   String
+  id                      String // User_id + subject_name + new Date()
+  isFavorite              Boolean
+  name                    String
+  workspaces              AccountsWorkspaces[]
+  owned                   Boolean
+  createdBy               String
 }
 
-type UsersWorkspaces {
-  boards     UsersBoards[]
-  color      String
-  id         Int
-  isFavorite Boolean
-  members    UsersWorkspacesMembers[]
-  name       String
-  owned      Boolean
+type AccountsWorkspaces {
+  members                 AccountsWorkspacesMembers[]
+  boards                  AccountsBoards[]
+  admins                  String[] // Array of AccountsWorkspacesMembers.email
+  color                   String
+  id                      String // subject_id + workspace_name + new Date()
+  isFavorite              Boolean
+  name                    String
+  owned                   Boolean
+  createdBy               String
 }
 
-type UsersWorkspacesMembers {
-  id      Int
-  name    String
-  profile String
+type AccountsWorkspacesMembers {
+  email                   String // Unique like id (one email for one account)
+  name                    String
+  profile                 String
 }
 
-type UsersBoards {
-  color     String
-  createdBy String
-  createdOn DateTime
-  id        Int
-  name      String
-  tasks     UsersTasks[]
+type AccountsBoards {
+  tasks                   AccountsTasks[]
+  color                   String
+  createdBy               String
+  createdOn               DateTime
+  id                      String // workspace_id + board_name + new Date()
+  name                    String
 }
 
-type UsersTasks {
-  createdBy    String
-  createdOn    DateTime
-  description  String
-  dueDateTime  DateTime
-  id           Int
-  isFavorite   Boolean
-  isSubtask    Boolean
-  level        Int
-  members      UsersTasksMembers[]
-  name         String
-  status       String
-  subtasks     UsersTasksSubtasks[]
+type AccountsTasks {
+  members                 AccountsTasksMembers[]
+  subtasks                AccountsTasksSubtasks[]
+  conversations           AccountsTasksConversations[]
+  viewers                 String[]
+  createdBy               String
+  createdOn               DateTime
+  description             String
+  dueDateTime             DateTime
+  id                      String // workspace_id + tasks_name + new Date()
+  isFavorite              Boolean
+  isSubtask               Boolean
+  level                   Int
+  name                    String
+  status                  String
 }
 
-type UsersTasksMembers {
-  id      Int
-  name    String
-  profile String
+type AccountsTasksMembers {
+  email                   String
+  name                    String
+  profile                 String
 }
 
-type UsersTasksSubtasks {
-  createdBy   String
-  createdOn   DateTime
-  description String
-  dueDateTime DateTime
-  id          Int
-  isFavorite  Boolean
-  members     UsersTasksSubtasksMembers[]
-  name        String
-  status      String
+type AccountsTasksSubtasks {
+  members                 AccountsTasksSubtasksMembers[]
+  createdBy               String
+  createdOn               DateTime
+  description             String
+  dueDateTime             DateTime
+  id                      String
+  isFavorite              Boolean
+  name                    String
+  status                  String
 }
 
-type UsersTasksSubtasksMembers {
-  id      Int
-  name    String
-  profile String
+type AccountsTasksSubtasksMembers {
+  email                   String
+  name                    String
+  profile                 String
 }
 
-model users {
-  id         String            @id @default(auto()) @map("_id") @db.ObjectId
-  age        Int
-  course     String
-  email      String
-  firstName  String
-  gender     String
-  lastName   String
-  password   String
-  profile    String
-  school     String
-  subjects   UsersSubjects[]
-  useHint    Boolean
-  year       Int
-  lastActive DateTime
+type AccountsTasksConversations {
+  sender                  AccountsTasksConversationsSender
+  message                 String
+  sendAt                  DateTime
+  id                      String // AccountsTasksConversationsSender_email + new Date() + message (upto 13 chars)
+}
+
+type AccountsTasksConversationsSender {
+  email                   String
+  name                    String
+  profile                 String
+}
+
+type AccountsNotification {
+  id                      String // message + for.userID
+  message                 String
+  isRead                  Boolean
+  anInvitation            Boolean
+  aMention                Boolean
+  conversationID          String
+  fromInterface           AccountsNotificationFromInterface
+  fromTask                String // task_id
+  for                      AccountsNotificationFor
+}
+
+type AccountsNotificationFromInterface {
+  interf                  String
+  subInterface            String
+}
+
+type AccountsNotificationFor {
+  self                    Boolean
+  userID                  String
+}
+
+model accounts {
+  subjects                AccountsSubjects[]
+  notifications           AccountsNotification[]
+  id                      String  @id @default(auto())  @map("_id") @db.ObjectId
+  age                     Int
+  course                  String
+  email                   String
+  firstName               String
+  gender                  String
+  lastName                String
+  password                String
+  profile                 String
+  school                  String
+  useHint                 Boolean
+  year                    Int
+  lastActive              DateTime
 }
