@@ -3,14 +3,8 @@ const express = require("express");
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
-const corsOption = {
-  origin: '*',
-  preflightContinue: true
-}
-
 var app = express()
-app.use(cors(corsOption))
-app.options('*', cors(corsOption))
+app.use(cors())
 
 // use JSON
 app.use(bodyParser.json());
@@ -213,7 +207,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/admin', async (req, res) =
 })
 
 // Create new or Add new Task to the board
-app.post('/MainApp/dashboard/subject/workspace/board/create/task', cors(corsOption), async (req, res) => {
+app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.subjects.map(subject => {
     if (subject.id === req.body.ids.subject) {
@@ -245,6 +239,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/create/task', cors(corsOpti
       })
     }
   })
+  res.header('Allow-Control-Access-Origin', '*')
   res.send(await userFinal(userA))
 })
 
