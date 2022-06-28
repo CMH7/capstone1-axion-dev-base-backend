@@ -3,8 +3,14 @@ const express = require("express");
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
-var app = express();
-app.use(cors());
+const corsOption = {
+  origin: '*',
+  preflightContinue: true
+}
+
+var app = express()
+app.use(cors(corsOption))
+app.options('*', cors(corsOption))
 
 // use JSON
 app.use(bodyParser.json());
