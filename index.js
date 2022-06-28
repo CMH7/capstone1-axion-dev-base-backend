@@ -213,7 +213,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/admin', async (req, res) =
 })
 
 // Create new or Add new Task to the board
-app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, res) => {
+app.post('/MainApp/dashboard/subject/workspace/board/create/task', cors(corsOption), async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.subjects.map(subject => {
     if (subject.id === req.body.ids.subject) {
