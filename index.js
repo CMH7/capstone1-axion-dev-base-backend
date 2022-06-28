@@ -239,7 +239,6 @@ app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, r
       })
     }
   })
-  res.header('Access-Control-Allow-Origin', '*')
   res.send(await userFinal(userA))
 })
 
