@@ -59,7 +59,8 @@ const userFinal = async (userCopy) => {
       school: userCopy.school,
       useHint: userCopy.useHint,
       year: userCopy.year,
-      lastActive: new Date()
+      lastActive: new Date(),
+      bio: userCopy.bio
     }
   })
   disconn()

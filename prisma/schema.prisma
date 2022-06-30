@@ -136,4 +136,5 @@ model accounts {
   useHint                 Boolean
   year                    Int
   lastActive              DateTime
+  bio                     String
 }
