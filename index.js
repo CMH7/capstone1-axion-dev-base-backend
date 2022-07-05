@@ -726,6 +726,16 @@ app.delete('/MainApp/delete/subject', async (req, res) => {
   res.send(await userFinal(userA))
 })
 
+
+// TESTS
+app.get('/MainApp/:SubjectName', (req, res) => {
+  res.send({
+    data: req.params.SubjectName,
+    error: false,
+    message: 'OK'
+  })
+})
+
 app.listen(port, function () {
   console.log("Started application backend on port %d", port);
 });
