@@ -120,6 +120,16 @@ type AccountsNotificationFor {
   userID                  String
 }
 
+model subjects {
+  id                      String  @id @default(auto())  @map("_id") @db.ObjectId
+  color			              String
+	isFavorite		          Boolean
+	name			              String
+	workspaces		          String[]
+	ownerID		              String
+	ownerName		            String
+}
+
 model accounts {
   subjects                AccountsSubjects[]
   notifications           AccountsNotification[]
