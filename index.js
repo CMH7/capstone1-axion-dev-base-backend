@@ -148,21 +148,22 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 // Create new or Add new member to the workspace
 app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.map(workspace => {
+      subject.workspaces.every(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.members.push(
-                {
-                  email: req.body.workspace.member.email,
-                  name: req.body.workspace.member.name,
-                  profile: req.body.workspace.member.profile
-                }
-              )
-            }
-          }
-        )
-      }
+          workspace.members.push({
+            email: req.body.workspace.member.email,
+            name: req.body.workspace.member.name,
+            profile: req.body.workspace.member.profile
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
     }
   )
   res.send(await userFinal(userA))
