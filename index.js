@@ -526,7 +526,7 @@ app.post('/validUser', async (req, res) => {
     }
   })
   disconn()
-  res.send(user)
+  res.send(user ? user : {})
 })
 
 // ###################### PUT ROUTES #####################
