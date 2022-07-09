@@ -512,7 +512,7 @@ app.get('/Signin', async (req, res) => {
     }
   })
   disconn()
-  res.send(pass)
+  res.send(pass ? pass : {password: ''})
 })
 
 // Gets the user based on the email
