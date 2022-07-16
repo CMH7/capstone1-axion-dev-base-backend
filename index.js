@@ -1,7 +1,6 @@
-/* eslint-disable no-unused-vars */
-const express = require("express");
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const express = require("express")
+const cors = require('cors')
+const bodyParser = require('body-parser')
 
 var app = express()
 app.use(cors())
@@ -530,6 +529,14 @@ app.post('/validUser', async (req, res) => {
 })
 
 // ###################### PUT ROUTES #####################
+app.put('/validUser/edit/profile', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.profile = req.body.user.profile
+  const userFinalCopy = await userFinal(userA)
+  res.send({
+    profile: userFinalCopy.profile
+  })
+})
 
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
