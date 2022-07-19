@@ -479,6 +479,22 @@ app.get('/', async (req, res) => {
   disconn()
 })
 
+// Set the notification isRead to true and return it
+app.get('/User/notification/isread', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.notifications.every(notification => {
+    if (notification.id === req.body.ids.notification) {
+      notification.isRead = true
+      return false
+    }
+    return true
+  })
+  const finalUser = await userFinal(userA)
+  res.send({
+    notifications: finalUser.notifications
+  })
+})
+
 // Get the user and then update its lastActive to the current DateTime
 app.get('/Signin/active', async (req, res) => {
   conn()
@@ -544,6 +560,16 @@ app.delete('/User/delete/notification', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.notifications = userA.notifications.filter(notif => notif.id != req.body.ids.notification)
   res.send(await userFinal(userA))
+})
+
+// Remove or delete all notification in user
+app.delete('/User/delete/all/notification', async (req, res) => {
+  const userA = await user(req.body.userID)
+  userA.notifications = []
+  const finalUser = await userFinal(userA)
+  res.send({
+    notifications: finalUser.notifications
+  })
 })
 
 // Remove or delete a member in subtask and in task with isSubtask true and task id equals subtask id
