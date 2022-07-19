@@ -480,10 +480,10 @@ app.get('/', async (req, res) => {
 })
 
 // Set the notification isRead to true and return it
-app.get('/User/notification/isread', async (req, res) => {
-  const userA = await user(req.body.ids.user)
+app.get('/User/notification', async (req, res) => {
+  const userA = await user(req.query.user)
   userA.notifications.every(notification => {
-    if (notification.id === req.body.ids.notification) {
+    if (notification.id === req.query.notification) {
       notification.isRead = true
       return false
     }
