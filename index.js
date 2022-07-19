@@ -559,7 +559,10 @@ app.put('/validUser/edit/profile', async (req, res) => {
 app.delete('/User/delete/notification', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.notifications = userA.notifications.filter(notif => notif.id != req.body.ids.notification)
-  res.send(await userFinal(userA))
+  const finalUser = await userFinal(userA)
+  res.send({
+    notifications: finalUser.notifications
+  })
 })
 
 // Remove or delete all notification in user
