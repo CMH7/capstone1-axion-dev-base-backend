@@ -107,7 +107,7 @@ type AccountsNotification {
   conversationID          String
   fromInterface           AccountsNotificationFromInterface
   fromTask                String // task_id
-  for                      AccountsNotificationFor
+  for                     AccountsNotificationFor
 }
 
 type AccountsNotificationFromInterface {
