@@ -93,7 +93,18 @@ app.post('/MainApp/dashboard/create/subject', async (req, res) => {
       createdBy: req.body.subject.createdBy
     }
   )
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    subject: {
+      color: req.body.subject.color,
+      id: req.body.ids.subject,
+      isFavorite: false,
+      name: req.body.subject.name,
+      workspaces: [],
+      owned: req.body.subject.owned,
+      createdBy: req.body.subject.createdBy
+    }
+  })
 })
 
 // Creates a new workspace
@@ -129,8 +140,14 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
               tasks: []
             },
           ],
-          members: [],
-          admins: [],
+          members: [
+            {
+              email: userA.email,
+              name: `${userA.firstName} ${userA.lastName}`,
+              profile: `${userA.profile}`
+            }
+          ],
+          admins: [`${userA.firstName} ${userA.lastName}`],
           color: req.body.workspace.color,
           id: req.body.ids.workspace,
           isFavorite: false,
@@ -141,7 +158,23 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
       )
     }
   })
-  res.send(await userFinal(userA))
+  const finalUser = await userFinal(userA)
+  let toSend = {}
+  finalUser.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          toSend = workspace
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+
+  res.send(toSend)
 })
 
 // Create new or Add new member to the workspace
@@ -210,37 +243,40 @@ app.post('/MainApp/dashboard/subject/workspace/create/admin', async (req, res) =
 // Create new or Add new Task to the board
 app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, res) => {
   const userA = await user(req.body.ids.user)
+  let toSend = {}
   userA.subjects.map(subject => {
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.map(workspace => {
         if (workspace.id === req.body.ids.workspace) {
           workspace.boards.map(board => {
             if (board.name === "Todo") {
-              board.tasks.push(
-                {
-                  members: req.body.task.member,
-                  subtasks: [],
-                  conversations: [],
-                  viewers: [],
-                  createdBy: req.body.task.createdBy,
-                  createdOn: new Date(),
-                  description: req.body.task.description,
-                  dueDateTime: req.body.task.dueDateTime,
-                  id: req.body.task.id,
-                  isFavorite: false,
-                  isSubtask: req.body.task.isSubtask,
-                  level: req.body.task.level,
-                  name: req.body.task.name,
-                  status: 'Todo'
-                }
-              )
+              toSend = {
+                members: req.body.task.member,
+                subtasks: [],
+                conversations: [],
+                viewers: [],
+                createdBy: req.body.task.createdBy,
+                createdOn: new Date(),
+                description: req.body.task.description,
+                dueDateTime: req.body.task.dueDateTime,
+                id: req.body.task.id,
+                isFavorite: false,
+                isSubtask: req.body.task.isSubtask,
+                level: req.body.task.level,
+                name: req.body.task.name,
+                status: 'Todo'
+              }
+              board.tasks.push(toSend)
             }
           })
         }
       })
     }
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    task: toSend
+  })
 })
 
 // Create new or Add new member to the task
@@ -448,7 +484,20 @@ app.post('/User/create/notification', async (req, res) => {
         for: req.body.notification.for
       }
     )
-    res.send(await userFinal(userA))
+    await userFinal(userA)
+    res.send({
+      notification: {
+        id: req.body.notification.id,
+        message: req.body.notification.message,
+        isRead: false,
+        anInvitation: req.body.notification.anInvitation,
+        aMention: req.body.notification.aMention,
+        conversationID: req.body.notification.conversationID,
+        fromInterface: req.body.notification.fromInterface,
+        fromTask: req.body.notification.fromTask,
+        for: req.body.notification.for
+      }
+    })
   } else {
     const userA = await user(req.body.notification.for.userID)
     userA.notifications.push(
@@ -492,6 +541,14 @@ app.get('/User/notification', async (req, res) => {
   const finalUser = await userFinal(userA)
   res.send({
     notifications: finalUser.notifications
+  })
+})
+
+// Get all the user's notifications
+app.get('/:id/notifications', async (req, res) => {
+  const userA = await user(req.params.id)
+  res.send({
+    notifications: userA.notifications
   })
 })
 
