@@ -10,7 +10,18 @@ app.use(bodyParser.json());
 
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
+
+// Keeps the server up by waking this server every 25 min.
+const wake = () => {
+  setInterval(async () => {
+    conn()
+    const res = await prisma.accounts.findMany()
+    disconn()
+  }, 1500000)
+}
+
+wake()
 
 // connect to the database
 async function conn() {
@@ -258,7 +269,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, r
                 createdBy: req.body.task.createdBy,
                 createdOn: new Date(),
                 description: req.body.task.description,
-                dueDateTime: req.body.task.dueDateTime,
+                dueDateTime: req.body.task.dueDateTime, 
                 id: req.body.task.id,
                 isFavorite: false,
                 isSubtask: req.body.task.isSubtask,
@@ -528,22 +539,6 @@ app.get('/', async (req, res) => {
   disconn()
 })
 
-// Set the notification isRead to true and return it
-app.get('/User/notification', async (req, res) => {
-  const userA = await user(req.query.user)
-  userA.notifications.every(notification => {
-    if (notification.id === req.query.notification) {
-      notification.isRead = true
-      return false
-    }
-    return true
-  })
-  const finalUser = await userFinal(userA)
-  res.send({
-    notifications: finalUser.notifications
-  })
-})
-
 // Get all the user's notifications
 app.get('/:id/notifications', async (req, res) => {
   const userA = await user(req.params.id)
@@ -599,6 +594,52 @@ app.post('/validUser', async (req, res) => {
   })
   disconn()
   res.send(user ? user : {})
+})
+
+// Set the notification isRead to true and return it
+app.get('/User/notification', async (req, res) => {
+  const userA = await user(req.query.user)
+  userA.notifications.every(notification => {
+    if (notification.id === req.query.notification) {
+      notification.isRead = true
+      return false
+    }
+    return true
+  })
+  const finalUser = await userFinal(userA)
+  res.send({
+    notifications: finalUser.notifications
+  })
+})
+
+// Get the metadata of the workspace member
+// if the current profile pic is not equal to the database then the current profile pic will be overwritten
+app.get('/MainApp/subject/workspace/member/:email', async (req, res) => {
+  const member = await prisma.accounts.findFirst({
+    select: {
+      firstName: true,
+      lastName: true,
+      profile: true
+    },
+    where: {
+      email: {
+        equals: req.params.email
+      }
+    }
+  })
+
+  res.send({member})
+})
+
+
+// Get the specific task
+app.get('/User/:id', async (req, res) => {
+  const userA = await user(req.params.id)
+  const subject = userA.subjects.filter(subject => subject.id === req.query.subjectID)
+  const workspace = subject[0].workspaces.filter(workspace => workspace.id === req.query.workspaceID)
+  const board = workspace[0].boards.filter(status => status.id === req.query.statusID)
+  const task = board[0].tasks.filter(task => task.id === req.query.taskID)
+  res.send({task: task[0]})
 })
 
 // ###################### PUT ROUTES #####################
