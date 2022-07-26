@@ -16,9 +16,10 @@ const prisma = new PrismaClient()
 const wake = () => {
   setInterval(async () => {
     conn()
-    const res = await prisma.accounts.findMany()
+    await prisma.accounts.findMany()
     disconn()
-  }, 1500000)
+    console.log('waked the server')
+  }, 1200000)
 }
 
 wake()
