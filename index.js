@@ -15,10 +15,12 @@ const prisma = new PrismaClient()
 // Keeps the server up by waking this server every 25 min.
 const wake = () => {
   setInterval(async () => {
-    conn()
-    await prisma.accounts.findMany()
-    disconn()
-    console.log('waked the server')
+    const res = await fetch('/')
+    if (res.ok) {
+      console.log('Waked the system!')
+    } else {
+      console.log('Waked system but error in fetch!')
+    }
   }, 1200000)
 }
 
