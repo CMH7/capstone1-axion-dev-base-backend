@@ -1,3 +1,4 @@
+const axios = require('axios')
 const express = require("express")
 const cors = require('cors')
 const bodyParser = require('body-parser')
@@ -12,18 +13,16 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient()
 
-// Keeps the server up by waking this server every 25 min.
+// Keeps the server up by waking this server every 20 min.
 const wake = () => {
   setInterval(async () => {
-    const res = await fetch('/')
-    if (res.ok) {
-      console.log('Waked the system!')
-    } else {
-      console.log('Waked system but error in fetch!')
-    }
-  }, 1200000)
+    await axios.get('https://axion-back.herokuapp.com/').then(res => {
+      console.log(`Waked the system!, ${res.status}`)
+    }).catch(err => {
+      console.log(`Waked system but error in fetch!, ${err}`)
+    })
+  }, 20 * 60 * 1000)
 }
-
 wake()
 
 // connect to the database
