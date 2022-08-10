@@ -267,7 +267,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, r
                 members: req.body.task.member,
                 subtasks: [],
                 conversations: [],
-                viewers: [],
+                viewers: [`${userA.firstName} ${userA.lastName}`],
                 createdBy: req.body.task.createdBy,
                 createdOn: new Date(),
                 description: req.body.task.description,
