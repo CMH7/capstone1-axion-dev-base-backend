@@ -675,7 +675,53 @@ app.put('/User/edit/bio', async (req, res) => {
   })
 })
 
-// Update the subject based on the subjectID
+// Update the subject color based on the subjectID
+app.put('/MainApp/edit/subject/color', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.color = req.body.color
+      return false
+    }
+    return true
+  })
+  const finalUser = await userFinal(userA)
+  res.send({
+    color: req.body.color
+  })
+})
+
+// Update the subject isFavorite based on the subjectID
+app.put('/MainApp/edit/subject/isFavorite', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.isFavorite = req.body.isFavorite
+      return false
+    }
+    return true
+  })
+  const finalUser = await userFinal(userA)
+  res.send({
+    isFavorite: req.body.isFavorite
+  })
+})
+
+// Update the subject name based on the subjectID
+app.put('/MainApp/edit/subject/name', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.name = req.body.name
+      return false
+    }
+    return true
+  })
+  const finalUser = await userFinal(userA)
+  res.send({
+    name: req.body.name
+  })
+})
 
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
