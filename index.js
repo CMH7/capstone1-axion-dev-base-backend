@@ -645,6 +645,7 @@ app.get('/User/:id', async (req, res) => {
 })
 
 // ###################### PUT ROUTES #####################
+// Update the profile pic 
 app.put('/validUser/edit/profile', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.profile = req.body.user.profile
@@ -653,6 +654,28 @@ app.put('/validUser/edit/profile', async (req, res) => {
     profile: userFinalCopy.profile
   })
 })
+
+// Update the age of the user
+
+// Update the year of the user
+
+// Update the useHint setting of the user
+
+// Update the school of the user
+
+// Update the course of the user
+
+// Update the bio of the user
+app.put('/User/edit/bio', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.bio = req.body.bio
+  const finalUser = await userFinal(userA)
+  res.send({
+    bio: req.body.bio
+  })
+})
+
+// Update the subject based on the subjectID
 
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
