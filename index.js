@@ -656,6 +656,14 @@ app.put('/validUser/edit/profile', async (req, res) => {
 })
 
 // Update the age of the user
+app.put('/User/edit/age', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.age = req.body.age
+  const finalUser = await userFinal(userA)
+  res.send({
+    age: req.body.age
+  })
+})
 
 // Update the year of the user
 
