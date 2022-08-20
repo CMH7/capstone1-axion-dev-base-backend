@@ -335,7 +335,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
                   members: req.body.task.subtask.members,
                   subtasks: [],
                   conversations: [],
-                  viewers: [],
+                  viewers: [`${userA.firstName} ${userA.lastName}`],
                   createdBy: req.body.task.subtask.createdBy,
                   createdOn: req.body.task.subtask.createdOn,
                   description: req.body.task.subtask.description,
@@ -363,7 +363,8 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
                       id: req.body.task.subtask.id,
                       isFavorite: false,
                       name: req.body.task.subtask.name,
-                      status: "Todo"
+                      status: "Todo",
+                      level: req.body.task.subtask.level
                     }
                   )
                 }
