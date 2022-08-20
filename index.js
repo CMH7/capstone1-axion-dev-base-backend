@@ -662,6 +662,14 @@ app.put('/validUser/edit/profile', async (req, res) => {
 // Update the useHint setting of the user
 
 // Update the school of the user
+app.put('/User/edit/school', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.school = req.body.school
+  const finalUser = await userFinal(userA)
+  res.send({
+    school: req.body.school
+  })
+})
 
 // Update the course of the user
 app.put('/User/edit/course', async (req, res) => {
