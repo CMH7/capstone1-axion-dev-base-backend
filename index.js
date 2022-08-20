@@ -664,6 +664,14 @@ app.put('/validUser/edit/profile', async (req, res) => {
 // Update the school of the user
 
 // Update the course of the user
+app.put('/User/edit/course', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.course = req.body.course
+  const finalUser = await userFinal(userA)
+  res.send({
+    course: req.body.course
+  })
+})
 
 // Update the bio of the user
 app.put('/User/edit/bio', async (req, res) => {
