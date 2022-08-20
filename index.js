@@ -335,7 +335,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
                   members: req.body.task.subtask.members,
                   subtasks: [],
                   conversations: [],
-                  viewers: [],
+                  viewers: [`${userA.firstName} ${userA.lastName}`],
                   createdBy: req.body.task.subtask.createdBy,
                   createdOn: req.body.task.subtask.createdOn,
                   description: req.body.task.subtask.description,
@@ -363,7 +363,8 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
                       id: req.body.task.subtask.id,
                       isFavorite: false,
                       name: req.body.task.subtask.name,
-                      status: "Todo"
+                      status: "Todo",
+                      level: req.body.task.subtask.level
                     }
                   )
                 }
@@ -656,14 +657,54 @@ app.put('/validUser/edit/profile', async (req, res) => {
 })
 
 // Update the age of the user
+app.put('/User/edit/age', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.age = req.body.age
+  const finalUser = await userFinal(userA)
+  res.send({
+    age: req.body.age
+  })
+})
 
 // Update the year of the user
+app.put('/User/edit/year', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.year = req.body.year
+  const finalUser = await userFinal(userA)
+  res.send({
+    year: req.body.year
+  })
+})
 
 // Update the useHint setting of the user
+app.put('/User/edit/useHint', async (req, res) =>{
+  const userA = await user(req.body.ids.user)
+  userA.useHint = req.body.useHint
+  const finalUser = await userFinal(userA)
+  res.send({
+    useHint: req.body.useHint
+  })
+})
 
 // Update the school of the user
+app.put('/User/edit/school', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.school = req.body.school
+  const finalUser = await userFinal(userA)
+  res.send({
+    school: req.body.school
+  })
+})
 
 // Update the course of the user
+app.put('/User/edit/course', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.course = req.body.course
+  const finalUser = await userFinal(userA)
+  res.send({
+    course: req.body.course
+  })
+})
 
 // Update the bio of the user
 app.put('/User/edit/bio', async (req, res) => {
