@@ -666,6 +666,14 @@ app.put('/User/edit/age', async (req, res) => {
 })
 
 // Update the year of the user
+app.put('/User/edit/year', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.year = req.body.year
+  const finalUser = await userFinal(userA)
+  res.send({
+    year: req.body.year
+  })
+})
 
 // Update the useHint setting of the user
 
