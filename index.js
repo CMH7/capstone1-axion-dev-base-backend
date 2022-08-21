@@ -764,6 +764,64 @@ app.put('/MainApp/edit/subject/name', async (req, res) => {
   })
 })
 
+// Update the task status based on the subjectID, workspaceID and boardID and taskID
+app.put('/MainApp/edit/subject/workspace/board/task/status', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+
+  // change the status of the task and remove it on its previous board
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          workspace.boards.every(board => {
+            if (board.id === req.body.ids.board) {
+              board.tasks.every(task => {
+                if (task.id === req.body.task.id) {
+                  board.tasks = board.tasks.filter(task2 => task2.id !== task.id)
+                  return false
+                }
+                return true
+              })
+
+              return false
+            }
+            return true
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+
+  // add the task on the selected board name (board name cannot be repeated on same workspace)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          workspace.boards.every(board => {
+            if (board.name === req.body.task.status) {
+              board.tasks.push(req.body.task)
+              return false
+            }
+            return true
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+  await userFinal(userA)
+  res.send({
+    task: req.body.task
+  })
+})
+
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
 app.delete('/User/delete/notification', async (req, res) => {
