@@ -16,7 +16,7 @@ const prisma = new PrismaClient()
 // Keeps the server up by waking this server every 20 min.
 const wake = () => {
   setInterval(async () => {
-    await axios.get('https://axion-back.herokuapp.com/').then(res => {
+    await axios.get('https://axion-backend.herokuapp.com/').then(res => {
       console.log(`Waked the system!, ${res.status}`)
     }).catch(err => {
       console.log(`Waked system but error in fetch!, ${err}`)
