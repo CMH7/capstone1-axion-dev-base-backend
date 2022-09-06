@@ -1018,7 +1018,11 @@ app.delete('/MainApp/subject/delete/workspace', async (req, res) => {
 app.delete('/MainApp/delete/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.subjects = userA.subjects.filter(subject => subject.id != req.body.ids.subject)
-  res.send(await userFinal(userA))
+  userA.notifications.push(req.body.notification)
+  await userFinal(userA)
+  res.send({
+    error: false
+  })
 })
 
 
