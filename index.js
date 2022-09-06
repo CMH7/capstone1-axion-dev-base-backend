@@ -716,51 +716,39 @@ app.put('/User/edit/bio', async (req, res) => {
   })
 })
 
-// Update the subject color based on the subjectID
-app.put('/MainApp/edit/subject/color', async (req, res) => {
+// Update the subject's meta data based on the subjectID
+app.put('/MainApp/edit/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.subjects.every(subject => {
-    if (subject.id === req.body.ids.subject) {
-      subject.color = req.body.color
+    if (subject.id === req.body.subject.id) {
+      subject.color = req.body.subject.color
+      subject.isFavorite = req.body.subject.isFavorite
+      subject.name = req.body.subject.name
       return false
     }
     return true
   })
   const finalUser = await userFinal(userA)
   res.send({
-    color: req.body.color
+    subject: req.body.subject
   })
 })
 
-// Update the subject isFavorite based on the subjectID
-app.put('/MainApp/edit/subject/isFavorite', async (req, res) => {
+// Update the subject a TRUNCATION of the subject
+app.put('/MainApp/truncate/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
+  let subjectToSend = {}
   userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.isFavorite = req.body.isFavorite
+      subject.workspaces = []
+      subjectToSend = subject
       return false
     }
     return true
   })
   const finalUser = await userFinal(userA)
   res.send({
-    isFavorite: req.body.isFavorite
-  })
-})
-
-// Update the subject name based on the subjectID
-app.put('/MainApp/edit/subject/name', async (req, res) => {
-  const userA = await user(req.body.ids.user)
-  userA.subjects.every(subject => {
-    if (subject.id === req.body.ids.subject) {
-      subject.name = req.body.name
-      return false
-    }
-    return true
-  })
-  const finalUser = await userFinal(userA)
-  res.send({
-    name: req.body.name
+    subject: subjectToSend
   })
 })
 
