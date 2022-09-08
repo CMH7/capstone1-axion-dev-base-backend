@@ -153,7 +153,7 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 		id: req.body.ids.workspace,
 		isFavorite: false,
 		name: req.body.workspace.name,
-		owned: subject.owned,
+		owned: true,
 		createdBy: req.body.workspace.createdBy,
   }
   
