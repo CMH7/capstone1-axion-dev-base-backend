@@ -95,99 +95,80 @@ app.post('/Signup', async (req, res) => {
 // Creates a new subject
 app.post('/MainApp/dashboard/create/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.push(
-    {
-      color: req.body.subject.color,
-      id: req.body.ids.subject,
-      isFavorite: false,
-      name: req.body.subject.name,
-      workspaces: [],
-      owned: req.body.subject.owned,
-      createdBy: req.body.subject.createdBy
-    }
-  )
+  const subjectToSend = {
+		color: req.body.subject.color,
+		id: req.body.ids.subject,
+		isFavorite: false,
+		name: req.body.subject.name,
+		workspaces: [],
+		owned: req.body.subject.owned,
+		createdBy: req.body.subject.createdBy,
+	}
+  userA.subjects.push(subjectToSend)
   await userFinal(userA)
   res.send({
-    subject: {
-      color: req.body.subject.color,
-      id: req.body.ids.subject,
-      isFavorite: false,
-      name: req.body.subject.name,
-      workspaces: [],
-      owned: req.body.subject.owned,
-      createdBy: req.body.subject.createdBy
-    }
+    subject: subjectToSend
   })
 })
 
 // Creates a new workspace
 app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  const workspaceToSend = {
+		boards: [
+			{
+				color: "grey",
+				createdBy: req.body.workspace.board.createdBy,
+				createdOn: req.body.workspace.board.createdOn,
+				id: req.body.ids.todo,
+				name: "Todo",
+				tasks: [],
+			},
+			{
+				color: "info",
+				createdBy: req.body.workspace.board.createdBy,
+				createdOn: req.body.workspace.board.createdOn,
+				id: req.body.ids.inprog,
+				name: "In progress",
+				tasks: [],
+			},
+			{
+				color: "success",
+				createdBy: req.body.workspace.board.createdBy,
+				createdOn: req.body.workspace.board.createdOn,
+				id: req.body.ids.done,
+				name: "Done",
+				tasks: [],
+			},
+		],
+		members: [
+			{
+				email: userA.email,
+				name: `${userA.firstName} ${userA.lastName}`,
+				profile: `${userA.profile}`,
+			},
+		],
+		admins: [`${userA.firstName} ${userA.lastName}`],
+		color: req.body.workspace.color,
+		id: req.body.ids.workspace,
+		isFavorite: false,
+		name: req.body.workspace.name,
+		owned: subject.owned,
+		createdBy: req.body.workspace.createdBy,
+  }
+  
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.push(
-        {
-          boards: [
-            {
-              color: "grey",
-              createdBy: req.body.workspace.board.createdBy,
-              createdOn: req.body.workspace.board.createdOn,
-              id: req.body.ids.todo,
-              name: "Todo",
-              tasks: []
-            },
-            {
-              color: "info",
-              createdBy: req.body.workspace.board.createdBy,
-              createdOn: req.body.workspace.board.createdOn,
-              id: req.body.ids.inprog,
-              name: "In progress",
-              tasks: []
-            },
-            {
-              color: "success",
-              createdBy: req.body.workspace.board.createdBy,
-              createdOn: req.body.workspace.board.createdOn,
-              id: req.body.ids.done,
-              name: "Done",
-              tasks: []
-            },
-          ],
-          members: [
-            {
-              email: userA.email,
-              name: `${userA.firstName} ${userA.lastName}`,
-              profile: `${userA.profile}`
-            }
-          ],
-          admins: [`${userA.firstName} ${userA.lastName}`],
-          color: req.body.workspace.color,
-          id: req.body.ids.workspace,
-          isFavorite: false,
-          name: req.body.workspace.name,
-          owned: subject.owned,
-          createdBy: req.body.workspace.createdBy
-        }
-      )
-    }
-  })
-  const finalUser = await userFinal(userA)
-  let toSend = {}
-  finalUser.subjects.every(subject => {
-    if (subject.id === req.body.ids.subject) {
-      subject.workspaces.every(workspace => {
-        if (workspace.id === req.body.ids.workspace) {
-          toSend = workspace
-          return false
-        }
-        return true
-      })
+      subject.workspaces.push(workspaceToSend)
       return false
     }
     return true
   })
+  await userFinal(userA)
 
-  res.send(toSend)
+  res.send({
+    workspace: workspaceToSend
+  })
 })
 
 // Create new or Add new member to the workspace
@@ -234,7 +215,6 @@ app.post('/MainApp/dashboard/subject/workspace/create/board', async (req, res) =
       })
     }
   })
-  userA.notifications.push(req.body.notification)
   await userFinal(userA);
   res.send({
     board: boardToSend
@@ -488,7 +468,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/viewer', async 
 app.post('/User/create/notification', async (req, res) => {
   if (req.body.notification.for.self) {
     const userA = await user(req.body.notification.for.userID)
-    userA.notifications.push(
+    userA.notifications.unshift(
       {
         id: req.body.notification.id,
         message: req.body.notification.message,
@@ -517,7 +497,7 @@ app.post('/User/create/notification', async (req, res) => {
     })
   } else {
     const userA = await user(req.body.notification.for.userID)
-    userA.notifications.push(
+    userA.notifications.unshift(
       {
         id: req.body.notification.id,
         message: req.body.notification.message,
