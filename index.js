@@ -217,25 +217,28 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
 // Create new or Add new board to the workspace
 app.post('/MainApp/dashboard/subject/workspace/create/board', async (req, res) => {
   const userA = await user(req.body.ids.user)
+  const boardToSend = {
+		tasks: [],
+		color: req.body.board.color,
+		createdBy: req.body.board.createdBy,
+		createdOn: new Date().toISOString(),
+		id: req.body.board.id,
+		name: req.body.board.name,
+	}
   userA.subjects.map(subject => {
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.map(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.boards.push(
-            {
-              tasks: [],
-              color: req.body.board.color,
-              createdBy: req.body.board.createdBy,
-              createdOn: req.body.board.createdOn,
-              id: req.body.ids.board,
-              name: req.body.board.name
-            }
-          )
+          workspace.boards.push(boardToSend)
         }
       })
     }
   })
-  res.send(await userFinal(userA))
+  userA.notifications.push(req.body.notification)
+  await userFinal(userA);
+  res.send({
+    board: boardToSend
+  })
 })
 
 // Create new or Add new Admin to the workspace
