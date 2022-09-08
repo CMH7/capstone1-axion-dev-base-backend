@@ -104,7 +104,6 @@ app.post('/MainApp/dashboard/create/subject', async (req, res) => {
 		owned: req.body.subject.owned,
 		createdBy: req.body.subject.createdBy,
 	}
-  userA.subjects.push(subjectToSend)
   await userFinal(userA)
   res.send({
     subject: subjectToSend
