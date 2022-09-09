@@ -147,7 +147,7 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 				profile: `${userA.profile}`,
 			},
 		],
-		admins: [`${userA.firstName} ${userA.lastName}`],
+		admins: [`${userA.email}`],
 		color: req.body.workspace.color,
 		id: req.body.ids.workspace,
 		isFavorite: false,
@@ -227,12 +227,15 @@ app.post('/MainApp/dashboard/subject/workspace/create/admin', async (req, res) =
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.map(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.admins.push(`${req.body.admin.email}`)
+          workspace.admins.push(`${req.body.email}`)
         }
       })
     }
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    admin: req.body.email
+  })
 })
 
 // Create new or Add new Task to the board
@@ -973,16 +976,25 @@ app.delete('/MainApp/subject/workspace/delete/board', async (req, res) => {
 // Remove or delete an admin in workspace
 app.delete('/MainApp/subject/workspace/delete/admin', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  let admins = []
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.map(workspace => {
-        if (workspace.id === req.body.workspace.id) {
-          workspace.admins = workspace.admins.filter(admin => admin != req.body.workspace.admin)
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          workspace.admins = workspace.admins.filter(admin => admin != req.body.admin)
+          admins = workspace.admins
+          return false
         }
+        return true
       })
+      return false
     }
+    return true
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    admins
+  })
 })
 
 // Remove or delete workspace in subject
