@@ -723,7 +723,6 @@ app.put('/MainApp/edit/subject', async (req, res) => {
 // Update the subject a TRUNCATION of the subject
 app.put('/MainApp/truncate/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.notifications.push(req.body.notification);
   let subjectToSend = {}
   userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
