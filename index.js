@@ -9,7 +9,7 @@ app.use(cors())
 // use JSON
 app.use(bodyParser.json());
 
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
@@ -103,7 +103,8 @@ app.post('/MainApp/dashboard/create/subject', async (req, res) => {
 		workspaces: [],
 		owned: req.body.subject.owned,
 		createdBy: req.body.subject.createdBy,
-	}
+  }
+  userA.subjects.push(subjectToSend)
   await userFinal(userA)
   res.send({
     subject: subjectToSend
@@ -738,6 +739,38 @@ app.put('/MainApp/truncate/subject', async (req, res) => {
   })
 })
 
+// update the board by userID, subjectID, workspaceID, and boardID
+app.put('/MainApp/subject/workspace/board/edit', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          workspace.boards.every(board => {
+            if (board.id === req.body.board.id) {
+              board.color = req.body.board.color
+              board.name = req.body.board.name
+              return false
+            }
+            return true
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+  await userFinal(userA)
+  res.send({
+    board: {
+      name: req.body.board.name,
+      color: req.body.board.color
+    }
+  })
+})
+
 // Update the task status based on the subjectID, workspaceID and boardID and taskID
 app.put('/MainApp/edit/subject/workspace/board/task/status', async (req, res) => {
   const userA = await user(req.body.ids.user)
@@ -960,16 +993,23 @@ app.delete('/MainApp/subject/workspace/delete/member', async (req, res) => {
 // Todo, In progress and Done cannot be deleted
 app.delete('/MainApp/subject/workspace/delete/board', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.map(workspace => {
+      subject.workspaces.every(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.boards = workspace.boards.filter(board => board.id != req.body.workspace.board.id)
+          workspace.boards = workspace.boards.filter(board => board.id !== req.body.ids.board)
+          return false
         }
+        return true
       })
+      return false
     }
+    return true
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+		id: req.body.ids.board
+	});
 })
 
 // Remove or delete an admin in workspace
