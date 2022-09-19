@@ -9,7 +9,7 @@ app.use(cors())
 // use JSON
 app.use(bodyParser.json());
 
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
@@ -736,6 +736,38 @@ app.put('/MainApp/truncate/subject', async (req, res) => {
   const finalUser = await userFinal(userA)
   res.send({
     subject: subjectToSend
+  })
+})
+
+// update the board by userID, subjectID, workspaceID, and boardID
+app.put('/MainApp/subject/workspace/board/edit', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.ids.workspace) {
+          workspace.boards.every(board => {
+            if (board.id === req.body.board.id) {
+              board.color = req.body.board.color
+              board.name = req.body.board.name
+              return false
+            }
+            return true
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+  await userFinal(userA)
+  res.send({
+    board: {
+      name: req.body.board.name,
+      color: req.body.board.color
+    }
   })
 })
 
