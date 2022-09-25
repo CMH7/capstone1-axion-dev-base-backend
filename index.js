@@ -16,7 +16,7 @@ const prisma = new PrismaClient()
 // Keeps the server up by waking this server every 20 min.
 const wake = () => {
   setInterval(async () => {
-    await axios.get('https://axion-backend.herokuapp.com/').then(res => {
+    await axios.get('https://axion-back.herokuapp.com/').then(res => {
       console.log(`Waked the system!, ${res.status}`)
     }).catch(err => {
       console.log(`Waked system but error in fetch!, ${err}`)
@@ -739,6 +739,35 @@ app.put('/MainApp/truncate/subject', async (req, res) => {
   })
 })
 
+// update the workspace by userID, subjectID, workspaceID
+app.put('/MainApp/subject/workspace/edit', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  userA.subjects.every(subject => {
+    if (subject.id === req.body.ids.subject) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.workspace.id) {
+          workspace.color = req.body.workspace.color
+          workspace.isFavorite = req.body.workspace.isFavorite
+          workspace.name = req.body.workspace.name
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
+  })
+
+  await userFinal(userA)
+  res.send({
+    workspace: {
+      color: req.body.workspace.color,
+      isFavorite: req.body.workspace.isFavorite,
+      name: req.body.workspace.name
+    }
+  })
+})
+
 // update the board by userID, subjectID, workspaceID, and boardID
 app.put('/MainApp/subject/workspace/board/edit', async (req, res) => {
   const userA = await user(req.body.ids.user)
@@ -1037,14 +1066,19 @@ app.delete('/MainApp/subject/workspace/delete/admin', async (req, res) => {
 })
 
 // Remove or delete workspace in subject
-app.delete('/MainApp/subject/delete/workspace', async (req, res) => {
+app.delete('/MainApp/subject/workspace/delete', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces = subject.workspaces.filter(workspace => workspace.id != req.body.ids.workspace)
+      subject.workspaces = subject.workspaces.filter(workspace => workspace.id !== req.body.ids.workspace)
+      return false
     }
+    return true
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    id: req.body.ids.workspace
+  })
 })
 
 // Remove or delete subject in account
