@@ -2,6 +2,7 @@ const axios = require('axios')
 const express = require("express")
 const cors = require('cors')
 const bodyParser = require('body-parser')
+const bcrypt = require('bcryptjs');
 
 var app = express()
 app.use(cors())
@@ -58,6 +59,7 @@ const userFinal = async (userCopy) => {
       id: userCopy.id
     },
     data: {
+      invitations: userCopy.invitations,
       subjects: userCopy.subjects,
       notifications: userCopy.notifications,
       age: userCopy.age,
@@ -168,6 +170,40 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 
   res.send({
     workspace: workspaceToSend
+  })
+})
+
+// Invite a member to the workspace
+app.post('/MainApp/subject/workspace/invite', async (req, res) => {
+  const userA = await user(req.body.invitation.from.id)
+  const userB = await user(req.body.invitation.to.id)
+
+  userA.invitations.push(req.body.invitation)
+  userB.invitations.push(req.body.invitation)
+
+  userB.notifications.push({
+		id: bcrypt.hashSync(`${userA.id}You're invited by ${userB.firstName} ${userB.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace \`${req.body.invitation.workspace.name}\``, 13),
+		message: `You're invited by ${userB.firstName} ${userB.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace \`${req.body.invitation.workspace.name}\``,
+		isRead: false,
+		anInvitation: true,
+		aMention: false,
+		conversationID: "",
+		fromInterface: {
+			interf: "Dashboard",
+			subInterface: "Boards",
+		},
+		fromTask: "",
+		for: {
+			self: true,
+			userID: userB.id,
+		},
+	});
+
+  await userFinal(userA)
+  await userFinal(userB)
+
+  res.send({
+    invitation: req.body.invitation
   })
 })
 
@@ -1004,18 +1040,27 @@ app.delete('/MainApp/subject/workspace/board/task/delete/chat', async (req, res)
 })
 
 // Remove or delete a member in workspace
-app.delete('/MainApp/subject/workspace/delete/member', async (req, res) => {
+app.delete('/MainApp/subject/workspace/member/delete', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.subjects.map(subject => {
+  let members = []
+  userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.map(workspace => {
+      subject.workspaces.every(workspace => {
         if (workspace.id === req.body.workspace.id) {
           workspace.members = workspace.members.filter(member => member.email != req.body.workspace.member.email)
+          members = workspace.members
+          return false
         }
+        return true
       })
+      return false
     }
+    return true
   })
-  res.send(await userFinal(userA))
+  await userFinal(userA)
+  res.send({
+    members
+  })
 })
 
 // Remove or delete a board (customed) in workspace
