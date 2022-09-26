@@ -7,6 +7,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+type AccountsInvitation {
+  id                      String // userID + date now + workspaceID + to.id
+  message                 String
+  subjectID               String
+  accepted                Boolean
+  to                      AccountsInvitationTo
+  from                    AccountsInvitationFrom
+  workspace               AccountsInvitationWorkspace
+}
+
+type AccountsInvitationTo {
+  id                      String
+  name                    String
+}
+
+type AccountsInvitationFrom {
+  id                      String // userID
+  name                    String
+  email                   String
+  profile                 String
+}
+
+type AccountsInvitationWorkspace {
+  id                      String
+  name                    String
+}
+
 type AccountsSubjects {
   color                   String
   id                      String // User_id + subject_name + new Date()
@@ -130,10 +157,10 @@ model subjects {
 	ownerID		              String
 	ownerName		            String
 }
-
 model accounts {
   subjects                AccountsSubjects[]
   notifications           AccountsNotification[]
+  invitations             AccountsInvitation[]
   id                      String  @id @default(auto())  @map("_id") @db.ObjectId
   age                     Int
   course                  String
