@@ -182,8 +182,8 @@ app.post('/MainApp/subject/workspace/invite', async (req, res) => {
   userB.invitations.push(req.body.invitation)
 
   userB.notifications.push({
-		id: bcrypt.hashSync(`${userA.id}You're invited by ${userB.firstName} ${userB.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace \`${req.body.invitation.workspace.name}\``, 13),
-		message: `You're invited by ${userB.firstName} ${userB.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace \`${req.body.invitation.workspace.name}\``,
+		id: bcrypt.hashSync(`${userA.id}You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace '${req.body.invitation.workspace.name}'`, 13),
+		message: `You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace '${req.body.invitation.workspace.name}'`,
 		isRead: false,
 		anInvitation: true,
 		aMention: false,
