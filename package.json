@@ -11,8 +11,9 @@
   "author": "V8-3",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^4.0.0",
+    "@prisma/client": "^4.3.1",
     "axios": "^0.27.2",
+    "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.0",
     "cors": "^2.8.5",
     "express": "^4.18.1",
@@ -21,6 +22,6 @@
     "nodemon": "^2.0.19"
   },
   "devDependencies": {
-    "prisma": "^4.0.0"
+    "prisma": "^4.3.1"
   }
 }
