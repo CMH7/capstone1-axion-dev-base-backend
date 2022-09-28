@@ -2,7 +2,16 @@ const axios = require('axios')
 const express = require("express")
 const cors = require('cors')
 const bodyParser = require('body-parser')
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs')
+const Pusher = require("pusher")
+
+const pusher = new Pusher({
+	appId: "1483141",
+	key: "8e02120d4843c3a07489",
+	secret: "9162ab2d1aecdb36eef8",
+	cluster: "ap1",
+	useTLS: true,
+})
 
 var app = express()
 app.use(cors())
@@ -175,15 +184,30 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 
 // Invite a member to the workspace
 app.post('/MainApp/subject/workspace/invite', async (req, res) => {
-  const userA = await user(req.body.invitation.from.id)
-  const userB = await user(req.body.invitation.to.id)
+	const userA = await user(req.body.invitation.from.id);
+	const userB = await user(req.body.invitation.to.id);
 
-  userA.invitations.push(req.body.invitation)
-  userB.invitations.push(req.body.invitation)
+	userA.invitations.push(req.body.invitation);
+	userB.invitations.push(req.body.invitation);
 
-  userB.notifications.push({
-		id: bcrypt.hashSync(`${userA.id}You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace '${req.body.invitation.workspace.name}'`, 13),
-		message: `You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male" ? "his" : userA.gender === "Female" ? "her" : "their"} workspace '${req.body.invitation.workspace.name}'`,
+  const userBNotification = {
+		id: bcrypt.hashSync(
+			`${userA.id}You're invited by ${userA.firstName} ${userA.lastName} to ${
+				userA.gender === "Male"
+					? "his"
+					: userA.gender === "Female"
+					? "her"
+					: "their"
+			} workspace '${req.body.invitation.workspace.name}'`,
+			13
+		),
+		message: `You're invited by ${userA.firstName} ${userA.lastName} to ${
+			userA.gender === "Male"
+				? "his"
+				: userA.gender === "Female"
+				? "her"
+				: "their"
+		} workspace '${req.body.invitation.workspace.name}'`,
 		isRead: false,
 		anInvitation: true,
 		aMention: false,
@@ -197,14 +221,22 @@ app.post('/MainApp/subject/workspace/invite', async (req, res) => {
 			self: true,
 			userID: userB.id,
 		},
-	});
+	};
 
-  await userFinal(userA)
-  await userFinal(userB)
+	userB.notifications.push(userBNotification);
 
-  res.send({
-    invitation: req.body.invitation
+	await userFinal(userA);
+	await userFinal(userB);
+
+	// push to userB about the new invitation
+  pusher.trigger(`${userB.id}`, "newInvitation", {
+    invitation: req.body.invitation,
+    notification: userBNotification
   })
+
+	res.send({
+		invitation: req.body.invitation,
+	});
 })
 
 // Create new or Add new member to the workspace
@@ -560,7 +592,7 @@ app.post('/User/create/notification', async (req, res) => {
 // Gets all user from database
 app.get('/', async (req, res) => {
   conn()
-  res.send(await prisma.accounts.findMany())
+  res.send(await prisma.accounts.findMany()) 
   disconn()
 })
 
@@ -609,16 +641,20 @@ app.get('/Signin', async (req, res) => {
 
 // Gets the user based on the email
 app.post('/validUser', async (req, res) => {
-  conn()
-  const user = await prisma.accounts.findFirst({
-    where: {
-      email: {
-        equals: req.body.email
-      }
-    }
-  })
-  disconn()
-  res.send(user ? user : {})
+	conn();
+	const user = await prisma.accounts.findFirst({
+		where: {
+			email: {
+				equals: req.body.email,
+			},
+		},
+	});
+	disconn();
+	// test
+	pusher.trigger(`${user.id}`, "loggedIn", {
+		message: `Hello ${user.firstName} ${user.lastName}, Greetings from backend.`,
+	}); 
+	res.send(user ? user : {});
 })
 
 // Set the notification isRead to true and return it
