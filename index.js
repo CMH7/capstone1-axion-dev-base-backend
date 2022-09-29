@@ -35,6 +35,37 @@ const wake = () => {
 }
 wake()
 
+// creates new notification
+const newNotifcation = (
+	/** @type string */ message,
+	/** @type boolean */ anInvitation,
+	/** @type boolean */ aMention,
+	/** @type string */ conversationID,
+	/** @type string */ interf,
+	/** @type string */ subInterface,
+	/** @type string */ fromTask,
+	/** @type boolean */ self,
+	/** @type string */ userID
+) => {
+	return {
+		id: bcrypt.hashSync(message, Math.random() * 20),
+		message,
+		isRead: false,
+		anInvitation,
+		aMention,
+		conversationID,
+		fromInterface: {
+			interf,
+			subInterface,
+		},
+		fromTask,
+		for: {
+			self,
+			userID,
+		},
+	};
+};
+
 // connect to the database
 async function conn() {
   await prisma.$connect();
@@ -115,7 +146,7 @@ app.post('/MainApp/dashboard/create/subject', async (req, res) => {
 		owned: req.body.subject.owned,
 		createdBy: req.body.subject.createdBy,
   }
-  userA.subjects.push(subjectToSend)
+  userA.subjects.unshift(subjectToSend)
   await userFinal(userA)
   res.send({
     subject: subjectToSend
@@ -170,7 +201,7 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
   
   userA.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
-      subject.workspaces.push(workspaceToSend)
+      subject.workspaces.unshift(workspaceToSend)
       return false
     }
     return true
@@ -184,11 +215,11 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 
 // Invite a member to the workspace
 app.post('/MainApp/subject/workspace/invite', async (req, res) => {
-	const userA = await user(req.body.invitation.from.id);
-	const userB = await user(req.body.invitation.to.id);
+	const userA = await user(req.body.invitation.from.id)
+	const userB = await user(req.body.invitation.to.id)
 
-	userA.invitations.push(req.body.invitation);
-	userB.invitations.push(req.body.invitation);
+	userA.invitations.unshift(req.body.invitation)
+	userB.invitations.unshift(req.body.invitation)
 
   const userBNotification = {
 		id: bcrypt.hashSync(
@@ -223,7 +254,7 @@ app.post('/MainApp/subject/workspace/invite', async (req, res) => {
 		},
 	};
 
-	userB.notifications.push(userBNotification);
+	userB.notifications.unshift(userBNotification)
 
 	await userFinal(userA);
 	await userFinal(userB);
@@ -246,7 +277,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.every(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.members.push({
+          workspace.members.unshift({
             email: req.body.workspace.member.email,
             name: req.body.workspace.member.name,
             profile: req.body.workspace.member.profile
@@ -278,7 +309,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/board', async (req, res) =
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.map(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.boards.push(boardToSend)
+          workspace.boards.unshift(boardToSend)
         }
       })
     }
@@ -296,7 +327,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/admin', async (req, res) =
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.map(workspace => {
         if (workspace.id === req.body.ids.workspace) {
-          workspace.admins.push(`${req.body.email}`)
+          workspace.admins.unshift(`${req.body.email}`)
         }
       })
     }
@@ -333,7 +364,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/create/task', async (req, r
                 name: req.body.task.name,
                 status: 'Todo'
               }
-              board.tasks.push(toSend)
+              board.tasks.unshift(toSend)
             }
           })
         }
@@ -357,7 +388,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/member', async 
             if (board.name === req.body.task.status) {
               board.tasks.map(task => {
                 if (task.id === req.body.task.id) {
-                  task.members.push(
+                  task.members.unshift(
                     {
                       email: req.body.task.member.email,
                       name: req.body.task.member.name,
@@ -384,7 +415,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
         if (workspace.id === req.body.ids.workspace) {
           workspace.boards.map(board => {
             if (board.name === "Todo") {
-              board.tasks.push(
+              board.tasks.unshift(
                 {
                   members: req.body.task.subtask.members,
                   subtasks: [],
@@ -407,7 +438,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/subtask', async
             if (board.name === req.body.task.status) {
               board.tasks.map(task => {
                 if (task.id === req.body.task.id) {
-                  task.subtasks.push(
+                  task.subtasks.unshift(
                     {
                       members: req.body.task.subtask.members,
                       createdBy: req.body.task.subtask.createdBy,
@@ -444,7 +475,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/subtask/create/member'
               board.tasks.map(task => {
                 // task id === subtask id
                 if (task.id === req.body.task.subtask.id) {
-                  task.members.push(
+                  task.members.unshift(
                     {
                       email: req.body.task.subtask.member.email,
                       name: req.body.task.subtask.member.name,
@@ -457,7 +488,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/subtask/create/member'
                 if (task.id === req.body.task.id) {
                   task.subtasks.map(subtask => {
                     if (subtask.id === req.body.task.subtask.id) {
-                      subtask.members.push(
+                      subtask.members.unshift(
                         {
                           email: req.body.task.subtask.member.email,
                           name: req.body.task.subtask.member.name,
@@ -489,7 +520,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/chat', async (r
             if (board.name === req.body.task.status) {
               board.tasks.map(task => {
                 if (task.id === req.body.task.id) {
-                  task.conversations.push(
+                  task.conversations.unshift(
                     {
                       sender: {
                         email: req.body.task.conversation.sender.email,
@@ -523,7 +554,7 @@ app.post('/MainApp/dashboard/subject/workspace/board/task/create/viewer', async 
             if (board.name === req.body.task.status) {
               board.tasks.map(task => {
                 if (task.id === req.body.task.id) {
-                  task.viewers.push(req.body.task.viewer.name)
+                  task.viewers.unshift(req.body.task.viewer.name)
                 }
               })
             }
@@ -777,7 +808,7 @@ app.put('/User/edit/bio', async (req, res) => {
 // Update the subject's meta data based on the subjectID
 app.put('/MainApp/edit/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
-  userA.notifications.push(req.body.notification)
+  userA.notifications.unshift(req.body.notification)
   userA.subjects.every(subject => {
     if (subject.id === req.body.subject.id) {
       subject.color = req.body.subject.color
@@ -911,7 +942,7 @@ app.put('/MainApp/edit/subject/workspace/board/task/status', async (req, res) =>
         if (workspace.id === req.body.ids.workspace) {
           workspace.boards.every(board => {
             if (board.name === req.body.task.status) {
-              board.tasks.push(req.body.task)
+              board.tasks.unshift(req.body.task)
               return false
             }
             return true
@@ -1075,6 +1106,36 @@ app.delete('/MainApp/subject/workspace/board/task/delete/chat', async (req, res)
   res.send(await userFinal(userA))
 })
 
+// Cancel/ delete/ remove an invitation
+app.delete('/:userID/:invitationID/:toUserID/cancel', async (req, res) => {
+  const userA = await user(req.params.userID)
+  const userB = await user(req.params.toUserID)
+  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.params.invitationID)
+  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.params.invitationID)
+
+  await userFinal(userA)
+  await userFinal(userB)
+  
+  pusher.trigger(`${userB.id}`, 'invitationCancelled', {
+    invitations: userB.invitations,
+    notification: newNotifcation(
+      `Invitation from ${userA.firstName} ${userA.lastName} is cancelled`,
+      true,
+      false,
+      '',
+      'Dashboard',
+      'Subjects',
+      '',
+      true,
+      userB.id
+    )
+  })
+
+  res.send({
+    invitations: userA.invitations
+  })
+})
+
 // Remove or delete a member in workspace
 app.delete('/MainApp/subject/workspace/member/delete', async (req, res) => {
   const userA = await user(req.body.ids.user)
@@ -1166,7 +1227,7 @@ app.delete('/MainApp/subject/workspace/delete', async (req, res) => {
 app.delete('/MainApp/delete/subject', async (req, res) => {
   const userA = await user(req.body.ids.user)
   userA.subjects = userA.subjects.filter(subject => subject.id != req.body.ids.subject)
-  userA.notifications.push(req.body.notification)
+  userA.notifications.unshift(req.body.notification)
   await userFinal(userA)
   res.send({
     error: false
