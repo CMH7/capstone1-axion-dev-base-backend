@@ -48,7 +48,7 @@ const newNotifcation = (
 	/** @type string */ userID
 ) => {
 	return {
-		id: bcrypt.hashSync(message, Math.random() * 20),
+		id: bcrypt.hashSync(message, 13),
 		message,
 		isRead: false,
 		anInvitation,
@@ -1107,28 +1107,40 @@ app.delete('/MainApp/subject/workspace/board/task/delete/chat', async (req, res)
 })
 
 // Cancel/ delete/ remove an invitation
-app.delete('/:userID/:invitationID/:toUserID/cancel', async (req, res) => {
-  const userA = await user(req.params.userID)
-  const userB = await user(req.params.toUserID)
-  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.params.invitationID)
-  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.params.invitationID)
+app.delete('/MainApp/subject/workspace/invitation/cancel', async (req, res) => {
+  const userA = await user(req.body.ids.user)
+  const userB = await user(req.body.ids.toUser)
+  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+
+  let invitationa
+  userB.invitations.every(invitation => {
+    if (invitation.id === req.body.ids.invitation) {
+      invitationa = invitation
+      return false
+    }
+    return true
+  })
+  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+  userB.notifications.unshift(
+		newNotifcation(
+			`Invitation from ${userA.firstName} ${userA.lastName} is cancelled`,
+			true,
+			false,
+			"",
+			"Dashboard",
+			"Subjects",
+			"",
+			true,
+			userB.id
+		)
+	);
+
 
   await userFinal(userA)
   await userFinal(userB)
   
   pusher.trigger(`${userB.id}`, 'invitationCancelled', {
-    invitations: userB.invitations,
-    notification: newNotifcation(
-      `Invitation from ${userA.firstName} ${userA.lastName} is cancelled`,
-      true,
-      false,
-      '',
-      'Dashboard',
-      'Subjects',
-      '',
-      true,
-      userB.id
-    )
+    invitation: invitationa
   })
 
   res.send({
