@@ -321,6 +321,9 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   /** userA is the user being invited */
   const userA = await user(req.body.ids.userA)
 
+  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+
   let subjectToSend
 
   userB.subjects.every(subject => {
@@ -356,6 +359,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   await userFinal(userB)
 
   pusher.trigger(`${userB.id}`, 'invitationAccepted', {
+    invitationID: req.body.ids.invitation,
     subjectID: req.body.ids.subject,
     workspaceID: req.body.ids.workspace,
     member: {
@@ -366,7 +370,8 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   })
 
   res.send({
-    subject: subjectToSend
+    subject: subjectToSend,
+    invitationID: req.body.ids.invitation
   })
 })
 
