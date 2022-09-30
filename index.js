@@ -261,56 +261,80 @@ app.post('/MainApp/subject/workspace/invite', async (req, res) => {
 	const userA = await user(req.body.invitation.from.id)
 	const userB = await user(req.body.invitation.to.id)
 
-	userA.invitations.unshift(req.body.invitation)
-	userB.invitations.unshift(req.body.invitation)
-
-  const userBNotification = {
-		id: bcrypt.hashSync(
-			`${userA.id}You're invited by ${userA.firstName} ${userA.lastName} to ${
-				userA.gender === "Male"
-					? "his"
-					: userA.gender === "Female"
-					? "her"
-					: "their"
-			} workspace '${req.body.invitation.workspace.name}'`,
-			13
-		),
-		message: `You're invited by ${userA.firstName} ${userA.lastName} to ${
-			userA.gender === "Male"
-				? "his"
-				: userA.gender === "Female"
-				? "her"
-				: "their"
-		} workspace '${req.body.invitation.workspace.name}'`,
-		isRead: false,
-		anInvitation: true,
-		aMention: false,
-		conversationID: "",
-		fromInterface: {
-			interf: "Dashboard",
-			subInterface: "Boards",
-		},
-		fromTask: "",
-		for: {
-			self: true,
-			userID: userB.id,
-		},
-	};
-
-	userB.notifications.unshift(userBNotification)
-
-	await userFinal(userA);
-	await userFinal(userB);
-
-	// push to userB about the new invitation
-  pusher.trigger(`${userB.id}`, "newInvitation", {
-    invitation: req.body.invitation,
-    notification: userBNotification
+  // check if the user being invited is existing in the workspace if not add else return existing is true
+  let existing = false
+  userA.subjects.every(subject => {
+    if (subject.id == req.body.invitation.subjectID) {
+      subject.workspaces.every(workspace => {
+        if (workspace.id === req.body.invitation.workspace.id) {
+          workspace.members.every(member => {
+            if (member.id === req.body.invitation.to.id) {
+              existing = true
+              return false
+            }
+            return true
+          })
+          return false
+        }
+        return true
+      })
+      return false
+    }
+    return true
   })
 
-	res.send({
-		invitation: req.body.invitation,
-	});
+  if (!existing) {
+    
+    userA.invitations.unshift(req.body.invitation)
+    userB.invitations.unshift(req.body.invitation)
+  
+    const userBNotification = {
+      id: bcrypt.hashSync(
+        `${userA.id}You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male"
+          ? "his"
+          : userA.gender === "Female"
+            ? "her"
+            : "their"
+        } workspace '${req.body.invitation.workspace.name}'`,
+        13
+      ),
+      message: `You're invited by ${userA.firstName} ${userA.lastName} to ${userA.gender === "Male"
+          ? "his"
+          : userA.gender === "Female"
+            ? "her"
+            : "their"
+        } workspace '${req.body.invitation.workspace.name}'`,
+      isRead: false,
+      anInvitation: true,
+      aMention: false,
+      conversationID: "",
+      fromInterface: {
+        interf: "Dashboard",
+        subInterface: "Boards",
+      },
+      fromTask: "",
+      for: {
+        self: true,
+        userID: userB.id,
+      },
+    };
+  
+    userB.notifications.unshift(userBNotification)
+  
+    await userFinal(userA);
+    await userFinal(userB);
+  
+    // push to userB about the new invitation
+    pusher.trigger(`${userB.id}`, "newInvitation", {
+      invitation: req.body.invitation,
+      notification: userBNotification
+    })
+  }
+
+  res.send({
+    existing,
+    invitation: req.body.invitation
+  })
 })
 
 // Create new or Add new member to the workspace
@@ -325,7 +349,11 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
 
   let subjectToSend
+  let subjectb
+  let workspacea
 
+
+  // adding the invited user to the workspace members of the inviter user
   userB.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.every(workspace => {
@@ -335,25 +363,64 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
             name: req.body.workspace.member.name,
             profile: req.body.workspace.member.profile
           })
-
-          userA.subjects.push(newSubject(subject.color, subject.id, subject.name, false, subject.createdBy))
-          userA.subjects.every(subjecta => {
-            if (subjecta.id === subject.id) {
-              subject.workspaces.push(newWorkspace(workspace.members, workspace.boards, workspace.admins, workspace.color, workspace.id, workspace.name, false, workspace.createdBy))
-              subjectToSend = subject
-              return false
-            }
-            return true
-          })
+          workspacea = workspace
           return false
         }
         return true
       })
+      subjectb = subject
       return false
     }
     return true
     }
   )
+
+  // Check if the subject is already existing
+  let existing = false
+  userA.subjects.every(subject => {
+    if (subject.id === subjectb.id) {
+      existing = true
+      return false
+    }
+    return true
+  })
+
+  // if existing just add the new workspace else create and add the new workspace
+  if (existing) {
+
+    // Check if the workspace is existing
+    let wexisting = false
+    userA.subjects.every(subjecta => {
+      if (subjecta.id === subjectb.id) {
+        subjecta.workspaces.every(workspace => {
+          if (workspace.id === workspacea.id) {
+            wexisting = true
+            return false
+          }
+          return true
+        })
+
+        if (!wexisting) {
+          subjecta.workspaces.push(newWorkspace(workspacea.members, workspacea.boards, workspacea.admins, workspacea.color, workspacea.id, workspacea.name, false, workspacea.createdBy))
+        } else {
+          subjecta.workspaces.push(workspacea)
+        }
+        subjectToSend = subjecta
+        return false
+      }
+      return true
+    })
+  } else {
+    userA.subjects.push(newSubject(subjectb.color, subjectb.id, subjectb.name, false, subjectb.createdBy))
+    userA.subjects.every(subjecta => {
+      if (subjecta.id === subjectb.id) {
+        subjecta.workspaces.push(newWorkspace(workspacea.members, workspacea.boards, workspacea.admins, workspacea.color, workspacea.id, workspacea.name, false, workspacea.createdBy))
+        subjectToSend = subjecta
+        return false
+      }
+      return true
+    })
+  }
 
   await userFinal(userA)
   await userFinal(userB)
@@ -371,6 +438,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
 
   res.send({
     subject: subjectToSend,
+    workspaceID: workspacea.id,
     invitationID: req.body.ids.invitation
   })
 })
