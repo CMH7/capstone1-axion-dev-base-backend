@@ -66,6 +66,49 @@ const newNotifcation = (
 	};
 };
 
+/** Creates a new subject @return AccountsSubject */
+const newSubject = (
+  /**@type string */ color,
+  /**@type string */ id,
+  /**@type string */ name,
+  /**@type boolean */ owned,
+  /**@type string */ createdBy
+) => {
+  return {
+    color,
+    id,
+    isFavorite: false,
+    name,
+    workspaces: [],
+    owned,
+    createdBy,
+  }
+}
+
+/** Creates a new workspace @return AccountsSubjectsWorkspace */
+const newWorkspace = (
+  /** @type AccountsWorkspaceMembers */ members,
+  /** @type AccountsBoards */ boards,
+  /** @type string[] */ admins,
+  /** @type string */ color,
+  /** @type string */ id,
+  /** @type string */ name,
+  /** @type boolean */ owned,
+  /** @type boolean */ createdBy
+) => {
+  return {
+    members,
+    boards,
+    admins,
+    color,
+    id,
+    isFavorite: false,
+    name,
+    owned,
+    createdBy
+  }
+}
+
 // connect to the database
 async function conn() {
   await prisma.$connect();
@@ -272,8 +315,15 @@ app.post('/MainApp/subject/workspace/invite', async (req, res) => {
 
 // Create new or Add new member to the workspace
 app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) => {
-  const userA = await user(req.body.ids.user)
-  userA.subjects.every(subject => {
+  /** userB is the inviter */
+  const userB = await user(req.body.ids.userB)
+
+  /** userA is the user being invited */
+  const userA = await user(req.body.ids.userA)
+
+  let subjectToSend
+
+  userB.subjects.every(subject => {
     if (subject.id === req.body.ids.subject) {
       subject.workspaces.every(workspace => {
         if (workspace.id === req.body.ids.workspace) {
@@ -281,6 +331,16 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
             email: req.body.workspace.member.email,
             name: req.body.workspace.member.name,
             profile: req.body.workspace.member.profile
+          })
+
+          userA.subjects.push(newSubject(subject.color, subject.id, subject.name, false, subject.createdBy))
+          userA.subjects.every(subjecta => {
+            if (subjecta.id === subject.id) {
+              subject.workspaces.push(newWorkspace(workspace.members, workspace.boards, workspace.admins, workspace.color, workspace.id, workspace.name, false, workspace.createdBy))
+              subjectToSend = subject
+              return false
+            }
+            return true
           })
           return false
         }
@@ -291,7 +351,23 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
     return true
     }
   )
-  res.send(await userFinal(userA))
+
+  await userFinal(userA)
+  await userFinal(userB)
+
+  pusher.trigger(`${userB.id}`, 'invitationAccepted', {
+    subjectID: req.body.ids.subject,
+    workspaceID: req.body.ids.workspace,
+    member: {
+      email: userA.email,
+      name: `${userA.firstName} ${userA.lastName}`,
+      profile: userA.profile
+    }
+  })
+
+  res.send({
+    subject: subjectToSend
+  })
 })
 
 // Create new or Add new board to the workspace
