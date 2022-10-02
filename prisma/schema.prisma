@@ -11,7 +11,7 @@ type AccountsInvitation {
   id                      String // userID + date now + workspaceID + to.id
   message                 String
   subjectID               String
-  accepted                Boolean
+  status                  String
   to                      AccountsInvitationTo
   from                    AccountsInvitationFrom
   workspace               AccountsInvitationWorkspace

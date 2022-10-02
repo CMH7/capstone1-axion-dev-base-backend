@@ -174,7 +174,7 @@ app.post('/Signup', async (req, res) => {
     data: req.body
   })
   disconn()
-  res.send({valid: true})
+  res.send({valid: newUser ? true : false})
 })
 
 // Creates a new subject
@@ -233,7 +233,7 @@ app.post('/MainApp/dashboard/subject/create/workspace', async (req, res) => {
 				profile: `${userA.profile}`,
 			},
 		],
-		admins: [`${userA.email}`],
+		admins: [`${userA.firstName} ${userA.lastName} (${userA.email})`],
 		color: req.body.workspace.color,
 		id: req.body.ids.workspace,
 		isFavorite: false,
@@ -346,12 +346,17 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   const userA = await user(req.body.ids.userA)
 
   userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
-  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+  userB.invitations.every(invitation => {
+    if (invitation.id === req.body.ids.invitation) {
+      invitation.status = 'accepted'
+      return false
+    }
+    return true
+  })
 
   let subjectToSend
   let subjectb
   let workspacea
-
 
   // adding the invited user to the workspace members of the inviter user
   userB.subjects.every(subject => {
@@ -829,12 +834,10 @@ app.post('/validUser', async (req, res) => {
 			},
 		},
 	});
-	disconn();
-	// test
-	pusher.trigger(`${user.id}`, "loggedIn", {
-		message: `Hello ${user.firstName} ${user.lastName}, Greetings from backend.`,
-	}); 
-	res.send(user ? user : {});
+	disconn()
+  res.send({
+    user
+  })
 })
 
 // Set the notification isRead to true and return it
@@ -850,6 +853,23 @@ app.get('/User/notification', async (req, res) => {
   const finalUser = await userFinal(userA)
   res.send({
     notifications: finalUser.notifications
+  })
+})
+
+// get a single user-notification
+app.get('/:userID/notification/:notifID', async (req, res) => {
+  const userA = await user(req.params.userID)
+  let notif
+  userA.notifications.every(notification => {
+    if (notification.id === req.params.notifID) {
+      notif = notification
+      return false
+    }
+    return true
+  })
+
+  res.send({
+    notification: notif
   })
 })
 
@@ -1257,43 +1277,86 @@ app.delete('/MainApp/subject/workspace/board/task/delete/chat', async (req, res)
 
 // Cancel/ delete/ remove an invitation
 app.delete('/MainApp/subject/workspace/invitation/cancel', async (req, res) => {
+  /** The inviter user */
   const userA = await user(req.body.ids.user)
-  const userB = await user(req.body.ids.toUser)
-  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
 
-  let invitationa
+  /** The invited user */
+  const userB = await user(req.body.ids.toUser)
+
+  // remove the invitation in both user
+  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+
+  let invitationa = {
+    id: '',
+    workspaceName: ''
+  }
   userB.invitations.every(invitation => {
     if (invitation.id === req.body.ids.invitation) {
-      invitationa = invitation
+      invitationa = {
+        id: invitation.id,
+        workspaceName: invitation.workspace.name
+      }
       return false
     }
     return true
   })
-  userB.invitations = userB.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
-  userB.notifications.unshift(
-		newNotifcation(
-			`Invitation from ${userA.firstName} ${userA.lastName} is cancelled`,
-			true,
-			false,
-			"",
-			"Dashboard",
-			"Subjects",
-			"",
-			true,
-			userB.id
-		)
-	);
+
+  // add new user-notification for the invited user about invitation canceled
+  const newNotif = newNotifcation(
+    `Invitation from ${userA.firstName} ${userA.lastName} to join in ${userA.gender === 'Male' ? 'his' : userA.gender === 'Female' ? 'her' : 'their'} workspace '${invitationa.workspaceName}' is canceled`,
+    true,
+    false,
+    "",
+    "Dashboard",
+    "Subjects",
+    "",
+    true,
+    userB.id
+  )
+  userB.notifications.unshift(newNotif);
 
 
   await userFinal(userA)
   await userFinal(userB)
   
-  pusher.trigger(`${userB.id}`, 'invitationCancelled', {
-    invitation: invitationa
+  pusher.trigger(`${userB.id}`, 'invitationCanceled', {
+    invitation: invitationa,
+    notificationID: newNotif.id
   })
 
   res.send({
-    invitations: userA.invitations
+    invitationID: invitationa.id
+  })
+})
+
+// Reject and delete the invitation
+app.delete('/MainApp/subject/workspace/invitation/reject', async (req, res) => {
+  /** The invited user */
+  const userA = await user(req.body.ids.userA)
+
+  /** The inviter user */
+  const userB = await user(req.body.ids.userB)
+
+  // update status of the invitation into rejected in userB
+  userB.invitations.every(invitation => {
+    if (invitation.id === req.body.ids.invitation) {
+      invitation.status = 'rejected'
+      return false
+    }
+    return true
+  })
+
+  // remove or delete the invitation in the userA
+  userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
+
+  // push event to userB
+  pusher.trigger(`${userB.id}`, 'invitationRejected', {
+    invitationID: req.body.ids.invitation
+  })
+
+  res.send({
+    invitationID: req.body.ids.invitation
   })
 })
 
