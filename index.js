@@ -22,6 +22,7 @@ app.use(bodyParser.json());
 const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
+await prisma.$connect()
 
 // Keeps the server up by waking this server every 20 min.
 const wake = () => {
@@ -109,21 +110,10 @@ const newWorkspace = (
   }
 }
 
-// connect to the database
-async function conn() {
-  await prisma.$connect();
-}
-
-// disconnects to the database
-async function disconn() {
-  await prisma.$disconnect();
-}
-
 // PORT
 const port = process.env.PORT || 8080
 
 const user = async (id) => {
-  conn()
   const SUPuser = await prisma.accounts.findFirst({
     where: {
       id: {
@@ -131,12 +121,10 @@ const user = async (id) => {
       }
     }
   })
-  disconn()
   return SUPuser
 }
 
 const userFinal = async (userCopy) => {
-  conn()
   const user = await prisma.accounts.update({
     where: {
       id: userCopy.id
@@ -160,7 +148,6 @@ const userFinal = async (userCopy) => {
       bio: userCopy.bio
     }
   })
-  disconn()
   return user
 }
 
@@ -169,11 +156,9 @@ const userFinal = async (userCopy) => {
 
 // Create new user
 app.post('/Signup', async (req, res) => {
-  conn()
   const newUser = await prisma.accounts.create({
     data: req.body
   })
-  disconn()
   res.send({valid: newUser ? true : false})
 })
 
@@ -780,9 +765,7 @@ app.post('/User/create/notification', async (req, res) => {
 // ######################## GET ROUTES #########################
 // Gets all user from database
 app.get('/', async (req, res) => {
-  conn()
-  res.send(await prisma.accounts.findMany()) 
-  disconn()
+  res.send(await prisma.accounts.findMany())
 })
 
 // Get all the user's notifications
@@ -795,7 +778,6 @@ app.get('/:id/notifications', async (req, res) => {
 
 // Get the user and then update its lastActive to the current DateTime
 app.get('/Signin/active', async (req, res) => {
-  conn()
   const userA = await prisma.accounts.findFirst(
     {
       where: {
@@ -805,7 +787,6 @@ app.get('/Signin/active', async (req, res) => {
       }
     }
   )
-  disconn()
   userA.lastActive = new Date()
   userFinal(userA)
   res.send({updated: true})
@@ -813,7 +794,6 @@ app.get('/Signin/active', async (req, res) => {
 
 // Gets only password to sign in
 app.get('/Signin', async (req, res) => {
-  conn()
   const pass = await prisma.accounts.findFirst({
     select: {
       password: true
@@ -824,21 +804,18 @@ app.get('/Signin', async (req, res) => {
       }
     }
   })
-  disconn()
   res.send(pass ? pass : {password: ''})
 })
 
 // Gets the user based on the email
 app.post('/validUser', async (req, res) => {
-	conn();
 	const user = await prisma.accounts.findFirst({
 		where: {
 			email: {
 				equals: req.body.email,
 			},
 		},
-	});
-	disconn()
+	})
   res.send({
     user
   })
