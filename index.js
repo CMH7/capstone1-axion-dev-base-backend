@@ -22,7 +22,10 @@ app.use(bodyParser.json());
 const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
-await prisma.$connect()
+const startPrisma = async () => {
+  await prisma.$connect()
+}
+startPrisma()
 
 // Keeps the server up by waking this server every 20 min.
 const wake = () => {
