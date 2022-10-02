@@ -345,14 +345,30 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   /** userA is the user being invited */
   const userA = await user(req.body.ids.userA)
 
+  let invitationa
   userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
   userB.invitations.every(invitation => {
     if (invitation.id === req.body.ids.invitation) {
       invitation.status = 'accepted'
+      invitationa = invitation
       return false
     }
     return true
   })
+
+  // add user-notification for userB to be notified that the userA accepted the invitation
+  const newNotif = newNotifcation(
+    `${userA.firstName} ${userA.lastName} joined in ${invitationa.workspace.name}!`,
+    true,
+		false,
+		"",
+		"Dashboard",
+		"Boards",
+		"",
+		true,
+		userB.id
+	);
+  userB.notifications.unshift(newNotif)
 
   let subjectToSend
   let subjectb
@@ -431,6 +447,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   await userFinal(userB)
 
   pusher.trigger(`${userB.id}`, 'invitationAccepted', {
+    notificationID: newNotif.id,
     invitationID: req.body.ids.invitation,
     subjectID: req.body.ids.subject,
     workspaceID: req.body.ids.workspace,
