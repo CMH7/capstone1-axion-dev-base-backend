@@ -36,7 +36,7 @@ const wake = () => {
 wake()
 
 // creates new notification
-const newNotifcation = (
+const newNotification = (
 	/** @type string */ message,
 	/** @type boolean */ anInvitation,
 	/** @type boolean */ aMention,
@@ -357,7 +357,7 @@ app.post('/MainApp/dashboard/subject/workspace/create/member', async (req, res) 
   })
 
   // add user-notification for userB to be notified that the userA accepted the invitation
-  const newNotif = newNotifcation(
+  const newNotif = newNotification(
     `${userA.firstName} ${userA.lastName} joined in ${invitationa.workspace.name}!`,
     true,
 		false,
@@ -1320,7 +1320,7 @@ app.delete('/MainApp/subject/workspace/invitation/cancel', async (req, res) => {
   })
 
   // add new user-notification for the invited user about invitation canceled
-  const newNotif = newNotifcation(
+  const newNotif = newNotification(
     `Invitation from ${userA.firstName} ${userA.lastName} to join in ${userA.gender === 'Male' ? 'his' : userA.gender === 'Female' ? 'her' : 'their'} workspace '${invitationa.workspaceName}' is canceled`,
     true,
     false,
@@ -1356,9 +1356,11 @@ app.delete('/MainApp/subject/workspace/invitation/reject', async (req, res) => {
   const userB = await user(req.body.ids.userB)
 
   // update status of the invitation into rejected in userB
+  let invitationa
   userB.invitations.every(invitation => {
     if (invitation.id === req.body.ids.invitation) {
       invitation.status = 'rejected'
+      invitationa = invitation
       return false
     }
     return true
@@ -1367,9 +1369,27 @@ app.delete('/MainApp/subject/workspace/invitation/reject', async (req, res) => {
   // remove or delete the invitation in the userA
   userA.invitations = userA.invitations.filter(invitation => invitation.id !== req.body.ids.invitation)
 
+  // add notification for the inviter that the invitation is rejected
+  const newNotif = newNotification(
+		`${userA.firstName} ${userA.lastName} rejected to join '${invitationa.workspace.name}'`,
+		true,
+		false,
+		"",
+		"Dashboard",
+		"Subjects",
+		"",
+		true,
+		userB.id
+  );
+  userB.notifications.unshift(newNotif)
+
+  await userFinal(userA)
+  await userFinal(userB)
+
   // push event to userB
   pusher.trigger(`${userB.id}`, 'invitationRejected', {
-    invitationID: req.body.ids.invitation
+    invitationID: req.body.ids.invitation,
+    notificationID: newNotif.id
   })
 
   res.send({
