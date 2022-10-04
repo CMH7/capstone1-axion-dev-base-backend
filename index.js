@@ -5,8 +5,9 @@ const bodyParser = require('body-parser')
 const bcrypt = require('bcryptjs')
 const Pusher = require("pusher")
 const sgMail = require('@sendgrid/mail')
+require("dotenv").config({ path: "./vars/.env" });
  
-sgMail.setApiKey("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")
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const pusher = new Pusher({
 	appId: "1483141",
