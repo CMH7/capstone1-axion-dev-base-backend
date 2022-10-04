@@ -815,7 +815,7 @@ app.get('/reverify/:id', async (req, res) => {
   const userA = await user(req.params.id)
   let resend = true
   sgMail.send(newMsg(userA.email, `${userA.firstName} ${userA.lastName}`, `${constants.backURI}/verification/${userA.id}?email=${userA.email}`)).then(res => {
-    console.log(`Email verification sent to ${newUser.email}, ${res}`)
+    console.log(`Email verification sent to ${userA.email}, ${res}`)
   }).catch(err => {
     console.error(err)
     resend = false
