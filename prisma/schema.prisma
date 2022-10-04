@@ -175,4 +175,5 @@ model accounts {
   year                    Int
   lastActive              DateTime
   bio                     String
+  verified                Boolean
 }
