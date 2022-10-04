@@ -4,6 +4,9 @@ const cors = require('cors')
 const bodyParser = require('body-parser')
 const bcrypt = require('bcryptjs')
 const Pusher = require("pusher")
+const sgMail = require('@sendgrid/mail')
+ 
+sgMail.setApiKey("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")
 
 const pusher = new Pusher({
 	appId: "1483141",
@@ -15,11 +18,11 @@ const pusher = new Pusher({
 
 var app = express()
 app.use(cors())
-
-// use JSON
-app.use(bodyParser.json());
+app.use(bodyParser.json())
+app.set('view engine', 'ejs')
 
 const { PrismaClient } = require('@prisma/client')
+const constants = require('./constants')
 
 const prisma = new PrismaClient()
 const startPrisma = async () => {
@@ -148,7 +151,8 @@ const userFinal = async (userCopy) => {
       useHint: userCopy.useHint,
       year: userCopy.year,
       lastActive: new Date(),
-      bio: userCopy.bio
+      bio: userCopy.bio,
+      verified: userCopy.verified
     }
   })
   return user
@@ -162,6 +166,13 @@ app.post('/Signup', async (req, res) => {
   const newUser = await prisma.accounts.create({
     data: req.body
   })
+
+  sgMail.send(constants.newMsg(newUser.email, `${newUser.firstName} ${newUser.lastName}`, `${constants.backURI}/verification/${newUser.id}?email=${newUser.email}`)).then(res => {
+    console.log(`Email verification sent to ${newUser.email}, ${res}`)
+  }).catch(err => {
+    console.error(err)
+  })
+
   res.send({valid: newUser ? true : false})
 })
 
@@ -766,9 +777,36 @@ app.post('/User/create/notification', async (req, res) => {
 })
 
 // ######################## GET ROUTES #########################
-// Gets all user from database
+// Gets all user
 app.get('/', async (req, res) => {
   res.send(await prisma.accounts.findMany())
+})
+
+// Get all verified users
+app.get('/verifiedUsers', async (req, res) => {
+  res.send(await prisma.accounts.findMany({
+    where: {
+      verified: {
+        equals: true
+      }
+    }
+  }));
+})
+
+// verify email of user
+app.get('/verification/:id', async (req, res) => {
+  const userA = await user(req.params.id)
+  if (userA.verified) {
+    res.render('verified')
+  } else {
+    pusher.trigger(`${userA.id}`, 'emailVerified', {
+      verified: true
+    })
+
+    userA.verified = true
+    await userFinal(userA)
+    res.render('verification')
+  }
 })
 
 // Get all the user's notifications
