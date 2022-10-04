@@ -23,6 +23,7 @@ app.set('view engine', 'ejs')
 
 const { PrismaClient } = require('@prisma/client')
 const constants = require('./constants')
+const { newMsg } = require('./constants')
 
 const prisma = new PrismaClient()
 const startPrisma = async () => {
@@ -807,6 +808,19 @@ app.get('/verification/:id', async (req, res) => {
     await userFinal(userA)
     res.render('verification')
   }
+})
+
+// resend verification mail to user email
+app.get('/reverify/:id', async (req, res) => {
+  const userA = await user(req.params.id)
+  sgMail.send(newMsg(userA.email, `${userA.firstName} ${userA.lastName}`, `${constants.backURI}/verification/${userA.id}?email=${userA.email}`)).then(res => {
+    console.log(`Email verification sent to ${newUser.email}, ${res}`)
+  }).catch(err => {
+    console.error(err)
+  })
+  res.send({
+    resend: true
+  })
 })
 
 // Get all the user's notifications
