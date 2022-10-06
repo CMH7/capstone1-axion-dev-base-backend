@@ -88,5 +88,5 @@ module.exports = {
 			},
 		};
 	},
-	backURI: "http://localhost:8008",
+	backURI: "https://axion-back.herokuapp.com",
 };

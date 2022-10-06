@@ -18,6 +18,7 @@ const { wake } = require('./wake')
 const { createSubject } = require("./controllers/Subject")
 const { user, userFinal, newUser } = require("./controllers/user")
 const { createWorkspace } = require("./controllers/Workspace")
+const { invite } = require("./controllers/Workspace/Member")
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -91,67 +92,19 @@ app.post("/MainApp/dashboard/subject/create/workspace", async (req, res) => {
 
 // Invite a member to the workspace
 app.post("/MainApp/subject/workspace/invite", async (req, res) => {
-	console.log("creating an invitation");
-
-	const userA = await user(req.body.invitation.from.id);
-	const userB = await user(req.body.invitation.to.id);
-
-	// check if the user being invited is existing in the workspace if not add else return existing is true
-	let existing = false;
-	userA.subjects.every((subject) => {
-		if (subject.id == req.body.invitation.subjectID) {
-			subject.workspaces.every((workspace) => {
-				if (workspace.id === req.body.invitation.workspace.id) {
-					workspace.members.every((member) => {
-						if (member.id === req.body.invitation.to.id) {
-							existing = true;
-							return false;
-						}
-						return true;
-					});
-					return false;
-				}
-				return true;
-			});
-			return false;
-		}
-		return true;
-	});
-
-	if (!existing) {
-		userA.invitations.unshift(req.body.invitation);
-		userB.invitations.unshift(req.body.invitation);
-
-		const newNotif = newNotification(
-			`${userA.firstName} ${userA.lastName} invites you to join '${req.body.invitation.workspace.name}'`,
-			true,
-			false,
-			"",
-			"Dashboard",
-			"Subjects",
-			"",
-			true,
-			userB.id
-		);
-
-		userB.notifications.unshift(newNotif);
-
-		await userFinal(userA);
-		await userFinal(userB);
-
-		// push to userB about the new invitation
-		pusher.trigger(`${userB.id}`, "newInvitation", {
-			invitation: req.body.invitation,
-			notification: newNotif,
-		});
-	}
-
-	console.log("created an invitation");
+  console.log("creating an invitation")
+  const result = await invite(req)
+  // push to userB about the new invitation
+  pusher.trigger(`${result.userBFinal.id}`, "newInvitation", {
+    invitation: req.body.invitation,
+		notification: result.newNotif,
+	})
+	console.log("created an invitation")
 	res.send({
-		existing,
+		existing: result.existing,
 		invitation: req.body.invitation,
-	});
-});
+	})
+})
 
 // Create new or Add new member to the workspace
 app.post(
