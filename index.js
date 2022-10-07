@@ -5,6 +5,7 @@ const bodyParser = require("body-parser")
 const Pusher = require("pusher")
 const sgMail = require("@sendgrid/mail");
 require("dotenv").config({ path: "./vars/.env" });
+const bcrypt = require('bcryptjs')
 
 const {
 	newMsg,
