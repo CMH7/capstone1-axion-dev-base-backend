@@ -1471,9 +1471,10 @@ app.get('/reset/password/check', async (req, res) => {
 	res.send(userA ? userA : { id: '', email: '' });
 })
 
-app.get('/reset/password/confirm', (req, res) => {
+app.get('/reset/password/confirm', (req, res, next) => {
 	pusher.trigger(`${req.query.id}`, "resetPasswordConfirm", {})
 	res.redirect(301, `${backURIfront}/reset?id=${req.query.id}`)
+	next()
 })
 
 // TESTS
