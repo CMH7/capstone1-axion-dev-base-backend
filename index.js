@@ -1473,7 +1473,7 @@ app.get('/reset/password/check', async (req, res) => {
 
 app.get('/reset/password/confirm', (req, res) => {
 	pusher.trigger(`${req.query.id}`, "resetPasswordConfirm", {})
-	res.redirect(`${backURIfront}/reset?id=${req.query.id}`)
+	res.redirect(301, `${backURIfront}/reset?id=${req.query.id}`)
 })
 
 // TESTS
