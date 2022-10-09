@@ -13,7 +13,9 @@ const {
 	newSubject,
 	newWorkspace,
   backURI,
-  prisma
+  prisma,
+	resetMsg,
+	backURIfront
 } = require("./constants");
 const { wake } = require('./wake')
 const { createSubject } = require("./controllers/Subject")
@@ -854,6 +856,18 @@ app.put("/User/edit/bio", async (req, res) => {
 	});
 });
 
+// Update the password of the user
+app.put('/User/edit/password', async (req, res) => {
+	console.log('Changing password')
+	const userA = await user(req.body.ids.user)
+	userA.password = req.body.password
+	const finalUser = await userFinal(userA)
+	console.log("Changed password");
+	res.send({
+		password: finalUser.password ? finalUser.password : ''
+	})
+})
+
 // Update the subject's meta data based on the subjectID
 app.put("/MainApp/edit/subject", async (req, res) => {
 	const userA = await user(req.body.ids.user);
@@ -1431,6 +1445,36 @@ app.delete("/MainApp/delete/subject", async (req, res) => {
 		error: false,
 	});
 });
+
+app.get('/reset/password/check', async (req, res) => {
+	console.log('Check email for reseting')
+	const userA = await prisma.accounts.findFirst({
+		select: {
+			id: true,
+			email: true
+		},
+		where: {
+			email: {
+				equals: req.query.email,
+			},
+		},
+	})
+	sgMail.send(resetMsg(userA.email, '', `${backURI}/reset/password/confirm?id=${userA.id}`))
+		.then((res) => {
+			console.log(`Reset password email sent to ${userA.email}, ${res}`);
+		})
+		.catch((err) => {
+			console.error(err);
+    })
+
+	console.log("Checked email for reseting")
+	res.send(userA ? userA : { id: '', email: '' });
+})
+
+app.get('/reset/password/confirm', (req, res) => {
+	pusher.trigger(`${req.query.id}`, "resetPasswordConfirm", {})
+	res.redirect(`${backURIfront}/reset?id=${req.query.id}`)
+})
 
 // TESTS
 app.get("/MainApp/:SubjectName", (req, res) => {
