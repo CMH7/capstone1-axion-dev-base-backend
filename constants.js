@@ -90,5 +90,16 @@ module.exports = {
 			},
 		};
 	},
+	resetMsg: (to, fullName, link) => {
+		return {
+			to,
+			from: "axionwebdev22@gmail.com",
+			template_id: "d-87c76215d73a40bb803a0900d8c51847",
+			dynamic_template_data: {
+				fullName,
+				link,
+			},
+		}
+	},
 	backURI: "https://axion-back.herokuapp.com",
 };
