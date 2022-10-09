@@ -22,6 +22,7 @@ const { createSubject } = require("./controllers/Subject")
 const { user, userFinal, newUser } = require("./controllers/user")
 const { createWorkspace } = require("./controllers/Workspace")
 const { invite } = require("./controllers/Workspace/Member")
+const { notification } = require("./models")
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -1032,13 +1033,24 @@ app.put(
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
 app.delete("/User/delete/notification", async (req, res) => {
-	const userA = await user(req.body.ids.user);
+	console.log('Deleting notification')
+	const userA = await user(req.body.ids.user)
+	let notif = notification
+	userA.notifications.every(notificationa => {
+		if (notificationa.id === req.body.ids.notification) {
+			notif = notificationa
+			return false
+		}
+		return true
+	})
 	userA.notifications = userA.notifications.filter(
 		(notif) => notif.id != req.body.ids.notification
 	);
-	const finalUser = await userFinal(userA);
+	await userFinal(userA)
+	console.log(`${notif ? 'Deleted' : 'Error deleting'} notification`)
 	res.send({
-		notifications: finalUser.notifications,
+		error: notif ? false : true,
+		notification: notif
 	});
 });
 
