@@ -871,7 +871,8 @@ app.put('/User/edit/password', async (req, res) => {
 
 // Update the subject's meta data based on the subjectID
 app.put("/MainApp/edit/subject", async (req, res) => {
-	const userA = await user(req.body.ids.user);
+	console.log('Editing subject')
+	const userA = await user(req.body.ids.user)
 	userA.notifications.unshift(req.body.notification);
 	userA.subjects.every((subject) => {
 		if (subject.id === req.body.subject.id) {
@@ -882,7 +883,8 @@ app.put("/MainApp/edit/subject", async (req, res) => {
 		}
 		return true;
 	});
-	const finalUser = await userFinal(userA);
+	const finalUser = await userFinal(userA)
+	console.log("Edited subject")
 	res.send({
 		subject: req.body.subject,
 	});
@@ -908,6 +910,7 @@ app.put("/MainApp/truncate/subject", async (req, res) => {
 
 // update the workspace by userID, subjectID, workspaceID
 app.put("/MainApp/subject/workspace/edit", async (req, res) => {
+	console.log('Editing workspace')
 	const userA = await user(req.body.ids.user);
 	userA.subjects.every((subject) => {
 		if (subject.id === req.body.ids.subject) {
@@ -925,7 +928,8 @@ app.put("/MainApp/subject/workspace/edit", async (req, res) => {
 		return true;
 	});
 
-	await userFinal(userA);
+	await userFinal(userA)
+	console.log("Edited workspace")
 	res.send({
 		workspace: {
 			color: req.body.workspace.color,
@@ -966,6 +970,47 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 		},
 	});
 });
+
+// Update the task based on SID, WID, BID and TID
+app.put('/MainApp/subject/workspace/board/task/edit', async (req, res) => {
+	console.log('Editing task')
+	const userA = await user(req.body.ids.user)
+	let taskToSend
+	userA.subjects.every(subject => {
+		if (subject.id === req.body.ids.subject) {
+			subject.workspaces.every(workspace => {
+				if (workspace.id === req.body.ids.workspace) {
+					workspace.boards.every(board => {
+						if (board.id === req.body.ids.board) {
+							board.tasks.every(task => {
+								if (task.id === req.body.task.id) {
+									task.name = req.body.task.name
+									task.isFavorite = req.body.task.isFavorite
+									task.level = req.body.task.level
+									taskToSend = task
+									return false
+								}
+								return true
+							})
+							return false
+						}
+						return true
+					})
+					return false
+				}
+				return true
+			})
+			return false
+		}
+		return true
+	})
+	await userFinal(userA)
+	console.log('Edited Task')
+	res.send({
+		error: taskToSend ? false : true,
+		task: taskToSend
+	})
+})
 
 // Update the task status based on the subjectID, workspaceID and boardID and taskID
 app.put(
