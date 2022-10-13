@@ -15,7 +15,7 @@ module.exports = {
 					profile: `${user.profile}`,
 				},
 			],
-			admins: [`${user.firstName} ${user.lastName} (${user.email})`],
+			admins: [`${user.email}`],
 			color: req.body.workspace.color,
 			id: req.body.ids.workspace,
 			isFavorite: false,
