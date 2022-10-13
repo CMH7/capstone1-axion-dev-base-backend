@@ -677,9 +677,7 @@ app.get('/id', async (req, res) => {
 			}
 		}
 	})
-	res.send({
-		id
-	})
+	res.send(id)
 })
 
 // Get all the user's notifications
@@ -989,7 +987,7 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 });
 
 // Leave the workspace
-app.put('/MainApp/subject/workspace//leave', async (req, res) => {
+app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 	/** The user */
 	const userA = await user(req.body.ids.userA);
 
@@ -1006,6 +1004,7 @@ app.put('/MainApp/subject/workspace//leave', async (req, res) => {
 
 	// update the workspace members and admins of the owner of the workspace
 	userB.subjects.every((subject) => {
+		console.log('leaving workspace');
 		if (subject.id === req.body.ids.subject) {
 			subject.workspaces.every((workspace) => {
 				if (workspace.id === req.body.ids.workspace) {
@@ -1056,13 +1055,15 @@ app.put('/MainApp/subject/workspace//leave', async (req, res) => {
 
 	pusher.trigger(`${userB.id}`, "memberLeaved", {
 		workspace: {
-			id: workspaceToSend.id,
+			id: req.body.ids.workspace,
 			member: {
 				email: userAA.email
 			}
 		},
 		notification: newNotif,
 	});
+
+	console.log('leaved workspace');
 
 	res.send({
 		error: userAA.subjects.filter(
