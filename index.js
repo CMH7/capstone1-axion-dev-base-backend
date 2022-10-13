@@ -665,6 +665,23 @@ app.get("/reverify/:id", async (req, res) => {
 	});
 });
 
+// get only the id of the user
+app.get('/id', async (req, res) => {
+	const id = await prisma.accounts.findFirst({
+		select: {
+			id: true
+		},
+		where: {
+			email: {
+				equals: req.query.email
+			}
+		}
+	})
+	res.send({
+		id
+	})
+})
+
 // Get all the user's notifications
 app.get("/:id/notifications", async (req, res) => {
 	const userA = await user(req.params.id);
@@ -970,6 +987,91 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 		},
 	});
 });
+
+// Leave the workspace
+app.put('/MainApp/subject/workspace//leave', async (req, res) => {
+	/** The user */
+	const userA = await user(req.body.ids.userA);
+
+	/** The owner of the workspace */
+	const userB = await user(req.body.ids.userB);
+
+	// delete the ubject
+	userA.subjects = userA.subjects.filter(
+		(subject) => subject.id !== req.body.ids.subject
+	);
+
+	let workspaceName = ""
+	let workspaceToSend
+
+	// update the workspace members and admins of the owner of the workspace
+	userB.subjects.every((subject) => {
+		if (subject.id === req.body.ids.subject) {
+			subject.workspaces.every((workspace) => {
+				if (workspace.id === req.body.ids.workspace) {
+					workspaceName = workspace.name
+
+					// removing the user in the workspace members of the w-owner
+					workspace.members = workspace.members.filter((member) => {
+						if (member.email !== userA.email) {
+							return member;
+						}
+					});
+
+					// checking if the user is an admin of the workspace
+					if (workspace.admins.includes) {
+						// removing the user as admin of the workspace
+						workspace.admins = workspace.admins.filter(
+							(admin) => admin !== userA.email
+						);
+					}
+
+					workspaceToSend = workspace
+					return false;
+				}
+				return true;
+			});
+			return false;
+		}
+		return true;
+	});
+
+	// add new user-notification for the invited user about invitation canceled
+	const newNotif = newNotification(
+		`${userA.firstName} ${userA.lastName} leaved ${workspaceName}`,
+		false,
+		false,
+		"",
+		"Dashboard",
+		"Subjects",
+		"",
+		true,
+		userB.id
+	);
+	userB.notifications.unshift(newNotif);
+
+	// finalize changes
+	const userAA = await userFinal(userA);
+	const userBB = await userFinal(userB);
+
+	pusher.trigger(`${userB.id}`, "memberLeaved", {
+		workspace: {
+			id: workspaceToSend.id,
+			member: {
+				email: userAA.email
+			}
+		},
+		notification: newNotif,
+	});
+
+	res.send({
+		error: userAA.subjects.filter(
+			(subject) => subject.id === req.body.ids.subject
+		).length
+			? true
+			: false,
+	});
+})
 
 // Update the task based on SID, WID, BID and TID
 app.put('/MainApp/subject/workspace/board/task/edit', async (req, res) => {
