@@ -19,9 +19,9 @@ const {
 } = require("./constants");
 const { wake } = require('./wake')
 const { createSubject } = require("./controllers/Subject")
-const { user, userFinal, newUser } = require("./controllers/user")
+const { user, userFinal, newUser, manyUserFinal } = require("./controllers/user")
 const { createWorkspace } = require("./controllers/Workspace")
-const { invite } = require("./controllers/Workspace/Member")
+const { invite, getAllMembers } = require("./controllers/Workspace/Member")
 const { notification } = require("./models")
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -115,12 +115,30 @@ app.post(
 	"/MainApp/dashboard/subject/workspace/create/member",
 	async (req, res) => {
 		console.log("accepting an invitation");
+		const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
+		/** userA is the user being invited */
+		const userA = accs[0]
 
 		/** userB is the inviter */
-		const userB = await user(req.body.ids.userB);
+		const userB = accs[1]
 
-		/** userA is the user being invited */
-		const userA = await user(req.body.ids.userA);
+		let membersID = []
+		userB.subjects.every(subject => {
+			subject.workspaces.every(workspace => {
+				if (workspace.id === req.body.invitation.workspace.id) {
+					// removing the owner in the members first
+					let temp = workspace.members.filter(member => member.id !== userB.id)
+					temp.forEach(member => {
+						membersID.push(member.id)
+					})
+					return false
+				}
+				return true
+			})
+			return true
+		})
+		const workspaceMembers = await getAllMembers(membersID)
+
 
 		let invitationa;
 		userA.invitations = userA.invitations.filter(
@@ -133,9 +151,9 @@ app.post(
 				return false;
 			}
 			return true;
-		});
+		})
 
-		// add user-notification for userB to be notified that the userA accepted the invitation
+		// building a new user-notification for the owner and all workspace members to be notified that the invited user accepted the invitation
 		const newNotif = newNotification(
 			`${userA.firstName} ${userA.lastName} joined in ${invitationa.workspace.name}!`,
 			true,
@@ -146,8 +164,11 @@ app.post(
 			"",
 			true,
 			userB.id
-		);
-		userB.notifications.unshift(newNotif);
+		)
+		userB.notifications.unshift(newNotif)
+		workspaceMembers.forEach(member => {
+			member.notifications.unshift(newNotif)
+		})
 
 		let subjectToSend;
 		let subjectb;
@@ -162,17 +183,40 @@ app.post(
 							email: req.body.workspace.member.email,
 							name: req.body.workspace.member.name,
 							profile: req.body.workspace.member.profile,
-						});
-						workspacea = workspace;
+							id: req.body.workspace.member.id
+						})
+						workspacea = workspace
+						subjectb = subject
 						return false;
 					}
 					return true;
 				});
-				subjectb = subject;
 				return false;
 			}
 			return true;
-		});
+		})
+		
+		// updating all workspace members list too
+		workspaceMembers.forEach(member => {
+			member.subjects.every((subject) => {
+				if (subject.id === req.body.ids.subject) {
+					subject.workspaces.every((workspace) => {
+						if (workspace.id === req.body.ids.workspace) {
+							workspace.members.unshift({
+								email: req.body.workspace.member.email,
+								name: req.body.workspace.member.name,
+								profile: req.body.workspace.member.profile,
+								id: req.body.workspace.member.id
+							})
+							return false;
+						}
+						return true;
+					})
+					return false;
+				}
+				return true;
+			})
+		})
 
 		// Check if the subject is already existing
 		let existing = false;
@@ -186,39 +230,25 @@ app.post(
 
 		// if existing just add the new workspace else create and add the new workspace
 		if (existing) {
-			// Check if the workspace is existing
-			let wexisting = false;
 			userA.subjects.every((subjecta) => {
 				if (subjecta.id === subjectb.id) {
-					subjecta.workspaces.every((workspace) => {
-						if (workspace.id === workspacea.id) {
-							wexisting = true;
-							return false;
-						}
-						return true;
-					});
-
-					if (!wexisting) {
-						subjecta.workspaces.push(
-							newWorkspace(
-								workspacea.members,
-								workspacea.boards,
-								workspacea.admins,
-								workspacea.color,
-								workspacea.id,
-								workspacea.name,
-								false,
-								workspacea.createdBy
-							)
-						);
-					} else {
-						subjecta.workspaces.push(workspacea);
-					}
+					subjecta.workspaces.push(
+						newWorkspace(
+							workspacea.members,
+							workspacea.boards,
+							workspacea.admins,
+							workspacea.color,
+							workspacea.id,
+							workspacea.name,
+							false,
+							workspacea.createdBy
+						)
+					);
 					subjectToSend = subjecta;
 					return false;
 				}
 				return true;
-			});
+			})
 		} else {
 			userA.subjects.push(
 				newSubject(
@@ -250,8 +280,7 @@ app.post(
 			});
 		}
 
-		await userFinal(userA);
-		await userFinal(userB);
+		await manyUserFinal([userA.id, userB.id, ...membersID], [userA, userB, ...workspaceMembers])
 
 		pusher.trigger(`${userB.id}`, "invitationAccepted", {
 			notification: newNotif,
@@ -262,13 +291,27 @@ app.post(
 				email: userA.email,
 				name: `${userA.firstName} ${userA.lastName}`,
 				profile: userA.profile,
+				id: userA.id
 			},
-		});
+		})
 
-		console.log("accepting an invitation");
+		workspaceMembers.forEach(member => {
+			pusher.trigger(`${member.id}`, "newMember", {
+				notification: newNotif,
+				subjectID: req.body.ids.subject,
+				workspaceID: req.body.ids.workspace,
+				member: {
+					email: userA.email,
+					name: `${userA.firstName} ${userA.lastName}`,
+					profile: userA.profile,
+					id: userA.id,
+				},
+			});
+		})
+
+		console.log("accepted an invitation");
 		res.send({
 			subject: subjectToSend,
-			workspaceID: workspacea.id,
 			invitationID: req.body.ids.invitation,
 		});
 	}
@@ -988,11 +1031,13 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 
 // Leave the workspace
 app.put('/MainApp/subject/workspace/leave', async (req, res) => {
+	const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
+
 	/** The user */
-	const userA = await user(req.body.ids.userA);
+	const userA = accs[0]
 
 	/** The owner of the workspace */
-	const userB = await user(req.body.ids.userB);
+	const userB = accs[1]
 
 	// delete the ubject
 	userA.subjects = userA.subjects.filter(
@@ -1035,9 +1080,9 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 		return true;
 	});
 
-	// add new user-notification for the invited user about invitation canceled
+	// add new user-notification for all members of the workspace user about invitation canceled
 	const newNotif = newNotification(
-		`${userA.firstName} ${userA.lastName} leaved ${workspaceName}`,
+		`${userB.firstName} ${userA.lastName} leaved ${workspaceName}`,
 		false,
 		false,
 		"",
@@ -1050,8 +1095,7 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 	userB.notifications.unshift(newNotif);
 
 	// finalize changes
-	const userAA = await userFinal(userA);
-	const userBB = await userFinal(userB);
+	const [userAA, userBB] = await manyUserFinal([userA.id, userB.id], [userA, userB])
 
 	pusher.trigger(`${userB.id}`, "memberLeaved", {
 		workspace: {
@@ -1369,20 +1413,13 @@ app.delete(
 // Cancel an invitation
 app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 	console.log("canceling an invitation");
+	const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB]);
 
 	/** The inviter user */
-	const userA = await user(req.body.ids.user);
+	const userA = accs[0];
 
 	/** The invited user */
-	const userB = await user(req.body.ids.toUser);
-
-	// remove the invitation in both user
-	userA.invitations = userA.invitations.filter(
-		(invitation) => invitation.id !== req.body.ids.invitation
-	);
-	userB.invitations = userB.invitations.filter(
-		(invitation) => invitation.id !== req.body.ids.invitation
-	);
+	const userB = accs[1];
 
 	let invitationa = {
 		id: "",
@@ -1399,9 +1436,17 @@ app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 		return true;
 	});
 
+	// remove the invitation in both user
+	userA.invitations = userA.invitations.filter(
+		(invitation) => invitation.id !== req.body.ids.invitation
+	);
+	userB.invitations = userB.invitations.filter(
+		(invitation) => invitation.id !== req.body.ids.invitation
+	);
+
 	// add new user-notification for the invited user about invitation canceled
 	const newNotif = newNotification(
-		`${userA.firstName} ${userA.lastName} invitatio to '${invitationa.workspaceName}' is canceled`,
+		`${userA.firstName} ${userA.lastName} invitation to '${invitationa.workspaceName}' is canceled`,
 		true,
 		false,
 		"",
@@ -1413,8 +1458,7 @@ app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 	);
 	userB.notifications.unshift(newNotif);
 
-	await userFinal(userA);
-	await userFinal(userB);
+	await manyUserFinal([userA.id, userB.id], [userA, userB])
 
 	pusher.trigger(`${userB.id}`, "invitationCanceled", {
 		invitation: invitationa,
@@ -1482,8 +1526,7 @@ app.delete("/MainApp/subject/workspace/invitation/reject", async (req, res) => {
 	);
 	userB.notifications.unshift(newNotif);
 
-	await userFinal(userA);
-	await userFinal(userB);
+	await manyUserFinal([userA.id, userB.id], [userA, userB])
 
 	// push event to userB
 	pusher.trigger(`${userB.id}`, "invitationRejected", {
