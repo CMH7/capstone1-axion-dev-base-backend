@@ -12,10 +12,15 @@ module.exports = {
 				{
 					email: user.email,
 					name: `${user.firstName} ${user.lastName}`,
-					profile: `${user.profile}`,
+					profile: user.profile,
+					id: user.id
 				},
 			],
-			admins: [`${user.email}`],
+			admins: [{
+				email: user.email,
+				name: `${user.firstName} ${user.lastName}`,
+				id: user.id
+			}],
 			color: req.body.workspace.color,
 			id: req.body.ids.workspace,
 			isFavorite: false,
