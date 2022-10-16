@@ -47,7 +47,7 @@ type AccountsSubjects {
 type AccountsWorkspaces {
   members                 AccountsWorkspacesMembers[]
   boards                  AccountsBoards[]
-  admins                  String[] // Array of AccountsWorkspacesMembers.email
+  admins                  AccountWorkspaceAdmins[] // Array of AccountsWorkspacesMembers.email
   color                   String
   id                      String // subject_id + workspace_name + new Date()
   isFavorite              Boolean
@@ -56,10 +56,17 @@ type AccountsWorkspaces {
   createdBy               String
 }
 
+type AccountWorkspaceAdmins {
+  email                   String
+  name                    String
+  id                      String
+}
+
 type AccountsWorkspacesMembers {
   email                   String // Unique like id (one email for one account)
   name                    String
   profile                 String
+  id                      String
 }
 
 type AccountsBoards {
@@ -92,6 +99,7 @@ type AccountsTasksMembers {
   email                   String
   name                    String
   profile                 String
+  id                      String
 }
 
 type AccountsTasksSubtasks {
@@ -111,6 +119,7 @@ type AccountsTasksSubtasksMembers {
   email                   String
   name                    String
   profile                 String
+  id                      String
 }
 
 type AccountsTasksConversations {
