@@ -1,33 +1,33 @@
 const { prisma } = require('../../constants')
 
 module.exports = {
-  manyUserFinal: async (/** @type string[] */ listID, /** @type account[] */ datalist) => {
+  manyUserFinal: async (/** @type account[] */ accounts) => {
     let trs = []
-    listID.forEach((a, i) => {
+    accounts.forEach((a, i) => {
       trs = [
 				...trs,
 				prisma.accounts.update({
 					where: {
-						id: a,
+						id: accounts[i].id,
 					},
 					data: {
-						invitations: datalist[i].invitations,
-						subjects: datalist[i].subjects,
-						notifications: datalist[i].notifications,
-						age: datalist[i].age,
-						course: datalist[i].course,
-						email: datalist[i].email,
-						firstName: datalist[i].firstName,
-						gender: datalist[i].gender,
-						lastName: datalist[i].lastName,
-						password: datalist[i].password,
-						profile: datalist[i].profile,
-						school: datalist[i].school,
-						useHint: datalist[i].useHint,
-						year: datalist[i].year,
+						invitations: accounts[i].invitations,
+						subjects: accounts[i].subjects,
+						notifications: accounts[i].notifications,
+						age: accounts[i].age,
+						course: accounts[i].course,
+						email: accounts[i].email,
+						firstName: accounts[i].firstName,
+						gender: accounts[i].gender,
+						lastName: accounts[i].lastName,
+						password: accounts[i].password,
+						profile: accounts[i].profile,
+						school: accounts[i].school,
+						useHint: accounts[i].useHint,
+						year: accounts[i].year,
 						lastActive: new Date(),
-						bio: datalist[i].bio,
-						verified: datalist[i].verified,
+						bio: accounts[i].bio,
+						verified: accounts[i].verified,
 					},
 				}),
 			];

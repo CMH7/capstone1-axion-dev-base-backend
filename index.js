@@ -96,7 +96,7 @@ app.post("/MainApp/dashboard/subject/create/workspace", async (req, res) => {
 
 // Invite a member to the workspace
 app.post("/MainApp/subject/workspace/invite", async (req, res) => {
-  console.log("creating an invitation")
+	console.log("creating an invitation")
   const result = await invite(req)
   // push to userB about the new invitation
   pusher.trigger(`${result.userBFinal.id}`, "newInvitation", {
@@ -114,13 +114,39 @@ app.post("/MainApp/subject/workspace/invite", async (req, res) => {
 app.post(
 	"/MainApp/dashboard/subject/workspace/create/member",
 	async (req, res) => {
-		console.log("accepting an invitation");
+		console.log("accepting an invitation")
+		let subjectToSend;
+		let subjectb;
+		let workspacea;
+
 		const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
 		/** userA is the user being invited */
-		const userA = accs[0]
+		const userA = accs[0].id === req.body.ids.userA ? accs[0] : accs[1]
 
 		/** userB is the inviter */
-		const userB = accs[1]
+		const userB = userA.id === accs[0].id ? accs[1] : accs[0]
+
+		// adding the invited user to the workspace members of the inviter user
+		userB.subjects.every((subject) => {
+			if (subject.id === req.body.ids.subject) {
+				subject.workspaces.every((workspace) => {
+					if (workspace.id === req.body.ids.workspace) {
+						workspace.members.unshift({
+							email: req.body.workspace.member.email,
+							name: req.body.workspace.member.name,
+							profile: req.body.workspace.member.profile,
+							id: req.body.workspace.member.id,
+						});
+						workspacea = workspace;
+						subjectb = subject;
+						return false;
+					}
+					return true;
+				});
+				return false;
+			}
+			return true;
+		});
 
 		let membersID = []
 		userB.subjects.every(subject => {
@@ -128,16 +154,27 @@ app.post(
 				if (workspace.id === req.body.ids.workspace) {
 					// removing the owner in the members first
 					let temp = workspace.members.filter(member => member.id !== userB.id)
-					temp.forEach(member => {
-						membersID.push(member.id)
-					})
+
+					// removing the newly added member
+					temp = temp.filter(member => member.id !== userA.id)
+
+					if (temp.length != 0) {
+						temp.forEach(member => {
+							membersID = [...membersID, member.id]
+						})
+					}
 					return false
 				}
 				return true
 			})
 			return true
 		})
-		const workspaceMembers = membersID.length ? [] : await getAllMembers(membersID)
+
+		let workspaceMembers = []
+
+		if (membersID.length != 0) {
+			workspaceMembers = await getAllMembers(membersID)
+		}
 
 
 		let invitationa;
@@ -166,61 +203,36 @@ app.post(
 			userB.id
 		)
 		userB.notifications.unshift(newNotif)
-		if (!workspaceMembers.length) {
-			workspaceMembers.forEach(member => {
-				member.notifications.unshift(newNotif)
-			})
-		}
 
-		let subjectToSend;
-		let subjectb;
-		let workspacea;
-
-		// adding the invited user to the workspace members of the inviter user
-		userB.subjects.every((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.every((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.members.unshift({
-							email: req.body.workspace.member.email,
-							name: req.body.workspace.member.name,
-							profile: req.body.workspace.member.profile,
-							id: req.body.workspace.member.id
-						})
-						workspacea = workspace
-						subjectb = subject
-						return false;
-					}
-					return true;
-				});
-				return false;
-			}
-			return true;
+		console.log('adding notification to members')
+		workspaceMembers.forEach(member => {
+			console.log(member.firstName);
+			member.notifications.unshift(newNotif)
 		})
+		console.log('adding notification to members done')
 		
 		// updating all workspace members list too
-		if (!workspaceMembers.length) {
-			workspaceMembers.forEach(member => {
-				member.subjects.every((subject) => {
-					if (subject.id === req.body.ids.subject) {
-						subject.workspaces.every((workspace) => {
-							if (workspace.id === req.body.ids.workspace) {
-								workspace.members.unshift({
-									email: req.body.workspace.member.email,
-									name: req.body.workspace.member.name,
-									profile: req.body.workspace.member.profile,
-									id: req.body.workspace.member.id
-								})
-								return false;
-							}
-							return true;
-						})
-						return false;
-					}
-					return true;
-				})
+		workspaceMembers.forEach(member => {
+			member.subjects.every((subject) => {
+				if (subject.id === req.body.ids.subject) {
+					subject.workspaces.every((workspace) => {
+						if (workspace.id === req.body.ids.workspace) {
+							workspace.members.unshift({
+								email: req.body.workspace.member.email,
+								name: req.body.workspace.member.name,
+								profile: req.body.workspace.member.profile,
+								id: req.body.workspace.member.id
+							})
+							console.log(`name: ${member.firstName}; members: ${workspace.members}`);
+							return false;
+						}
+						return true;
+					})
+					return false;
+				}
+				return true;
 			})
-		}
+		})
 
 		// Check if the subject is already existing
 		let existing = false;
@@ -284,10 +296,12 @@ app.post(
 			});
 		}
 
-		if (!membersID.length) {
-			await manyUserFinal([userA.id, userB.id, ...membersID], [userA, userB, ...workspaceMembers])
+		if (workspaceMembers.length != 0) {
+			console.log('Updating all members')
+			await manyUserFinal([userA, userB, ...workspaceMembers]);
 		} else {
-			await manyUserFinal([userA.id, userB.id], [userA, userB])
+			console.log('Updating invited and inviter')
+			await manyUserFinal([userA, userB])
 		}
 
 		pusher.trigger(`${userB.id}`, "invitationAccepted", {
@@ -303,7 +317,7 @@ app.post(
 			},
 		})
 
-		if (!membersID.length) {
+		if (membersID.length != 0) {
 			workspaceMembers.forEach(member => {
 				pusher.trigger(`${member.id}`, "newMember", {
 					notification: newNotif,
@@ -1044,10 +1058,10 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 	const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
 
 	/** The user */
-	const userA = accs[0]
+	const userA = accs[0].id === req.body.ids.userA ? accs[0] : accs[1]
 
 	/** The owner of the workspace */
-	const userB = accs[1]
+	const userB = userA.id === accs[0].id ? accs[1] : accs[0]
 
 	// delete the ubject
 	userA.subjects = userA.subjects.filter(
@@ -1105,7 +1119,7 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 	userB.notifications.unshift(newNotif);
 
 	// finalize changes
-	const [userAA, userBB] = await manyUserFinal([userA.id, userB.id], [userA, userB])
+	const [userAA, userBB] = await manyUserFinal([userA, userB])
 
 	pusher.trigger(`${userB.id}`, "memberLeaved", {
 		workspace: {
@@ -1426,10 +1440,10 @@ app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 	const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB]);
 
 	/** The inviter user */
-	const userA = accs[0];
+	const userA = accs[0].id === req.body.ids.userA ? accs[0] : accs[1]
 
 	/** The invited user */
-	const userB = accs[1];
+	const userB = accs[0].id === userA.id ? accs[1] : accs[0]
 
 	let invitationa = {
 		id: "",
@@ -1468,7 +1482,7 @@ app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 	);
 	userB.notifications.unshift(newNotif);
 
-	await manyUserFinal([userA.id, userB.id], [userA, userB])
+	await manyUserFinal([userA, userB])
 
 	pusher.trigger(`${userB.id}`, "invitationCanceled", {
 		invitation: invitationa,
@@ -1536,7 +1550,7 @@ app.delete("/MainApp/subject/workspace/invitation/reject", async (req, res) => {
 	);
 	userB.notifications.unshift(newNotif);
 
-	await manyUserFinal([userA.id, userB.id], [userA, userB])
+	await manyUserFinal([userA, userB])
 
 	// push event to userB
 	pusher.trigger(`${userB.id}`, "invitationRejected", {
@@ -1691,6 +1705,10 @@ app.get('/reset/password/confirm', (req, res, next) => {
 })
 
 // TESTS
+app.put('/tester/updatemany', async (req, res) => {
+	res.send(await getAllMembers([req.body.ids.userA, req.body.ids.userB]))
+})
+
 app.get("/MainApp/:SubjectName", (req, res) => {
 	res.send({
 		data: req.params.SubjectName,
