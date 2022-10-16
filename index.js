@@ -125,7 +125,7 @@ app.post(
 		let membersID = []
 		userB.subjects.every(subject => {
 			subject.workspaces.every(workspace => {
-				if (workspace.id === req.body.invitation.workspace.id) {
+				if (workspace.id === req.body.ids.workspace) {
 					// removing the owner in the members first
 					let temp = workspace.members.filter(member => member.id !== userB.id)
 					temp.forEach(member => {
@@ -137,7 +137,7 @@ app.post(
 			})
 			return true
 		})
-		const workspaceMembers = await getAllMembers(membersID)
+		const workspaceMembers = membersID.length ? [] : await getAllMembers(membersID)
 
 
 		let invitationa;
@@ -166,9 +166,11 @@ app.post(
 			userB.id
 		)
 		userB.notifications.unshift(newNotif)
-		workspaceMembers.forEach(member => {
-			member.notifications.unshift(newNotif)
-		})
+		if (!workspaceMembers.length) {
+			workspaceMembers.forEach(member => {
+				member.notifications.unshift(newNotif)
+			})
+		}
 
 		let subjectToSend;
 		let subjectb;
@@ -197,26 +199,28 @@ app.post(
 		})
 		
 		// updating all workspace members list too
-		workspaceMembers.forEach(member => {
-			member.subjects.every((subject) => {
-				if (subject.id === req.body.ids.subject) {
-					subject.workspaces.every((workspace) => {
-						if (workspace.id === req.body.ids.workspace) {
-							workspace.members.unshift({
-								email: req.body.workspace.member.email,
-								name: req.body.workspace.member.name,
-								profile: req.body.workspace.member.profile,
-								id: req.body.workspace.member.id
-							})
-							return false;
-						}
-						return true;
-					})
-					return false;
-				}
-				return true;
+		if (!workspaceMembers.length) {
+			workspaceMembers.forEach(member => {
+				member.subjects.every((subject) => {
+					if (subject.id === req.body.ids.subject) {
+						subject.workspaces.every((workspace) => {
+							if (workspace.id === req.body.ids.workspace) {
+								workspace.members.unshift({
+									email: req.body.workspace.member.email,
+									name: req.body.workspace.member.name,
+									profile: req.body.workspace.member.profile,
+									id: req.body.workspace.member.id
+								})
+								return false;
+							}
+							return true;
+						})
+						return false;
+					}
+					return true;
+				})
 			})
-		})
+		}
 
 		// Check if the subject is already existing
 		let existing = false;
@@ -280,7 +284,11 @@ app.post(
 			});
 		}
 
-		await manyUserFinal([userA.id, userB.id, ...membersID], [userA, userB, ...workspaceMembers])
+		if (!membersID.length) {
+			await manyUserFinal([userA.id, userB.id, ...membersID], [userA, userB, ...workspaceMembers])
+		} else {
+			await manyUserFinal([userA.id, userB.id], [userA, userB])
+		}
 
 		pusher.trigger(`${userB.id}`, "invitationAccepted", {
 			notification: newNotif,
@@ -295,19 +303,21 @@ app.post(
 			},
 		})
 
-		workspaceMembers.forEach(member => {
-			pusher.trigger(`${member.id}`, "newMember", {
-				notification: newNotif,
-				subjectID: req.body.ids.subject,
-				workspaceID: req.body.ids.workspace,
-				member: {
-					email: userA.email,
-					name: `${userA.firstName} ${userA.lastName}`,
-					profile: userA.profile,
-					id: userA.id,
-				},
-			});
-		})
+		if (!membersID.length) {
+			workspaceMembers.forEach(member => {
+				pusher.trigger(`${member.id}`, "newMember", {
+					notification: newNotif,
+					subjectID: req.body.ids.subject,
+					workspaceID: req.body.ids.workspace,
+					member: {
+						email: userA.email,
+						name: `${userA.firstName} ${userA.lastName}`,
+						profile: userA.profile,
+						id: userA.id,
+					},
+				});
+			})
+		}
 
 		console.log("accepted an invitation");
 		res.send({
