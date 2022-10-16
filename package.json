@@ -11,7 +11,7 @@
   "author": "V8-3",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^4.3.1",
+    "@prisma/client": "^4.4.0",
     "@sendgrid/mail": "^7.7.0",
     "axios": "^0.27.2",
     "bcryptjs": "^2.4.3",
@@ -26,6 +26,6 @@
     "pusher": "^5.1.1-beta"
   },
   "devDependencies": {
-    "prisma": "^4.3.1"
+    "prisma": "^4.4.0"
   }
 }
