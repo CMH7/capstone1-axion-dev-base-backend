@@ -133,6 +133,7 @@ type AccountsTasksConversationsSender {
   email                   String
   name                    String
   profile                 String
+  id                      String
 }
 
 type AccountsNotification {
