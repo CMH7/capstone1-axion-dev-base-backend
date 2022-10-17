@@ -213,6 +213,7 @@ app.post(
 		
 		// updating all workspace members list too
 		workspaceMembers.forEach(member => {
+			console.log(`Updating ${member.firstName} ${member.lastName}`);
 			member.subjects.every((subject) => {
 				if (subject.id === req.body.ids.subject) {
 					subject.workspaces.every((workspace) => {
@@ -223,7 +224,6 @@ app.post(
 								profile: req.body.workspace.member.profile,
 								id: req.body.workspace.member.id
 							})
-							console.log(`name: ${member.firstName}; members: ${workspace.members}`);
 							return false;
 						}
 						return true;
@@ -1055,6 +1055,10 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 
 // Leave the workspace
 app.put('/MainApp/subject/workspace/leave', async (req, res) => {
+	console.log('leaving the workspace')
+	let empty = false
+	let subjectToSend
+
 	const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
 
 	/** The user */
@@ -1063,17 +1067,37 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 	/** The owner of the workspace */
 	const userB = userA.id === accs[0].id ? accs[1] : accs[0]
 
-	// delete the ubject
-	userA.subjects = userA.subjects.filter(
-		(subject) => subject.id !== req.body.ids.subject
-	);
+	// check if when the workspace is deleted if the subject is empty or not, if empty make it owned else let it be
+	if (userA.subjects.filter(subject => subject.id !== req.body.ids.subject).length == 0) {
+		empty = true
+		userA.subjects.every(subject => { 
+			if (subject.id === req.body.ids.subject) {
+				subject.owned = true
+				subject.createdBy = `${userA.firstName} ${userA.lastName}`
+				subject.isFavorite = false
+				subject.workspaces = []
+				subject.id = bcrypt.hashSync(`${subject.name}${userA.id}${new Date()}`, 13)
+				subjectToSend = subject
+				return false
+			}
+			return true
+		})
+	} else {
+		// if not empty then just remove the workspace
+		userA.subjects.every(subject => {
+			if (subject.id === req.body.ids.subject) {
+				subject.workspaces = subject.workspaces.filter(workspace => workspace.id !== req.body.ids.workspace)
+				return false
+			}
+			return true
+		})
+	}
 
 	let workspaceName = ""
-	let workspaceToSend
+	let membersID = []
 
 	// update the workspace members and admins of the owner of the workspace
 	userB.subjects.every((subject) => {
-		console.log('leaving workspace');
 		if (subject.id === req.body.ids.subject) {
 			subject.workspaces.every((workspace) => {
 				if (workspace.id === req.body.ids.workspace) {
@@ -1084,17 +1108,32 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 						if (member.email !== userA.email) {
 							return member;
 						}
-					});
+					})
+					// removing the user in the workspace admins of the w-owner
+					workspace.admins = workspace.admins.filter(admin => admin.id !== userA.id)
 
-					// checking if the user is an admin of the workspace
-					if (workspace.admins.includes) {
-						// removing the user as admin of the workspace
-						workspace.admins = workspace.admins.filter(
-							(admin) => admin !== userA.email
-						);
-					}
+					workspace.boards.forEach(board => {
+						board.tasks.forEach(task => {
+							// remove the the leaving user as an assignee on the tasks
+							task.members = task.members.filter(member => member.id !== userA.id)
+
+							task.subtasks.forEach(subtask => {
+								// remove the tleaving user as an assignee on the subtasks
+								subtask.members = subtask.members.filter(member => member.id !== userA.id)
+							})
+						})
+					})
 
 					workspaceToSend = workspace
+
+					// remove temporarily the owner
+					let temp = workspace.members.filter(member => member.id !== userB.id)
+
+					if (temp.length != 0) {
+						temp.forEach(member => {
+							membersID = [...membersID, member.id]
+						})
+					}
 					return false;
 				}
 				return true;
@@ -1102,11 +1141,16 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 			return false;
 		}
 		return true;
-	});
+	})
 
-	// add new user-notification for all members of the workspace user about invitation canceled
+	let workspaceMembers = []
+	if (membersID.length != 0) {
+		workspaceMembers = await getAllMembers(membersID)
+	}
+
+	// add new user-notification for all members of the workspace user about leaving
 	const newNotif = newNotification(
-		`${userB.firstName} ${userA.lastName} leaved ${workspaceName}`,
+		`${userA.firstName} ${userA.lastName} leaved ${workspaceName}`,
 		false,
 		false,
 		"",
@@ -1116,29 +1160,87 @@ app.put('/MainApp/subject/workspace/leave', async (req, res) => {
 		true,
 		userB.id
 	);
-	userB.notifications.unshift(newNotif);
+	userB.notifications.unshift(newNotif)
+
+	console.log('adding notification to members')
+	workspaceMembers.forEach(member => {
+		member.notifications.unshift(newNotif)
+	})
+	console.log('adding notification to members done')
+
+	// updating all workspaces of other members too
+	workspaceMembers.forEach(member => {
+		console.log(`Updating ${member.firstName} ${member.lastName}`);
+		member.subjects.every(subject => {
+			if (subject.id === req.body.ids.subject) {
+				subject.workspaces.every(workspace => {
+					if(workspace.id === req.body.ids.workspace) {
+						// remove the leaving user on the workspace members
+						workspace.members = workspace.members.filter(member => member.id !== userA.id)
+
+						//remove the leaving user on the workspace admins
+						workspace.admins = workspace.admins.filter(admin => admin.id !== userA.id)
+
+						workspace.boards.forEach(board => {
+							board.tasks.forEach(task => {
+								// remove the leaving user as an assignee on the tasks
+								task.members = task.members.filter(member => member.id !== userA.id)
+
+								task.subtasks.forEach(subtask => {
+									// remove the leaving user as an assignee on the subtasks
+									subtask.members = subtask.members.filter(member => member.id !== userA.id)
+								})
+							})
+						})
+						return false
+					}
+					return true
+				})
+				return false
+			}
+			return true
+		})
+	})
 
 	// finalize changes
-	const [userAA, userBB] = await manyUserFinal([userA, userB])
+	if (workspaceMembers.length != 0) {
+		console.log('Finalizing updates to all members')
+		await manyUserFinal([userA, userB, ...workspaceMembers])
+	} else {
+		console.log('Finalizing updates on the owner and leaver')
+		await manyUserFinal([userA, userB])
+	}
 
 	pusher.trigger(`${userB.id}`, "memberLeaved", {
 		workspace: {
 			id: req.body.ids.workspace,
 			member: {
-				email: userAA.email
+				id: userA.id
 			}
 		},
 		notification: newNotif,
-	});
+	})
+
+	if (membersID.length != 0) {
+		workspaceMembers.forEach(member => {
+			pusher.trigger(`${member.id}`, "memberLeaved", {
+				workspace: {
+					id: req.body.ids.workspace,
+					member: {
+						id: userA.id
+					},
+				},
+				notification: newNotif,
+			});
+		})
+	}
 
 	console.log('leaved workspace');
 
 	res.send({
-		error: userAA.subjects.filter(
-			(subject) => subject.id === req.body.ids.subject
-		).length
-			? true
-			: false,
+		empty,
+		subject: subjectToSend,
+		workspaceID: req.body.ids.workspace
 	});
 })
 
@@ -1567,16 +1669,85 @@ app.delete("/MainApp/subject/workspace/invitation/reject", async (req, res) => {
 
 // Remove or delete a member in workspace
 app.delete("/MainApp/subject/workspace/member/delete", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	let members = [];
+	console.log('--------------------------------');
+	console.log('Removing a member');
+	let workspaceName = ''
+
+	const accs = await getAllMembers([req.body.ids.user, req.body.workspace.member.id])
+	/** Owner or admin of the workspace */
+	const userA = accs[0].id === req.body.ids.user ? accs[0] : accs[1]
+
+	/** The member that will be removed */
+	const userB = accs[0].id === userA.id ? accs[1] : accs[0]
+
+	// get all members of the workspace except userA and userB
+	// remove the userA on the list of the members
+	let membersID = []
+	let workspaceMembers = []
+	console.log('Checking members');
+	userA.subjects.every(subject => {
+		if (subject.id === req.body.ids.subject) {
+			subject.workspaces.every(workspace => {
+				if (workspace.id === req.body.workspace.id) {
+					workspaceName = workspace.name
+					let temp = workspace.members.filter(member => member.id !== userA.id)
+					temp = temp.filter(member => member.id !== userB.id)
+					membersID = [...membersID, ...temp.map(member => {
+						return member.id
+					})]
+					return false
+				}
+				return true
+			})
+			return false
+		}
+		return true
+	})
+	console.log('Checking members done');
+
+	if (membersID.length != 0) {
+		console.log('Getting members');
+		workspaceMembers = await getAllMembers(membersID)
+		console.log('Getting members done');
+	}
+
+	// building a new user-notification to notify all workspace members that a member is removed in the workspace
+	console.log('Building notification');
+	const newNotif = newNotification(
+		`${req.body.workspace.member.name} is removed in ${workspaceName}`,
+		false,
+		false,
+		'',
+		'',
+		'',
+		'',
+		true,
+		userA.id
+	)
+
+	const newNotif2 = newNotification(
+		`You are removed from ${workspaceName}`,
+		false,
+		false,
+		'',
+		'',
+		'',
+		'',
+		true,
+		userB.id
+	)
+	console.log('building notification done')
+
+	// remove the member
+	console.log('Removing member on the remover user');
 	userA.subjects.every((subject) => {
 		if (subject.id === req.body.ids.subject) {
 			subject.workspaces.every((workspace) => {
 				if (workspace.id === req.body.workspace.id) {
 					workspace.members = workspace.members.filter(
-						(member) => member.email != req.body.workspace.member.email
-					);
-					members = workspace.members;
+						(member) => member.id != req.body.workspace.member.id
+					)
+					workspace.admins = workspace.admins.filter(admin => admin.id !== req.body.workspace.member.id)
 					return false;
 				}
 				return true;
@@ -1584,10 +1755,91 @@ app.delete("/MainApp/subject/workspace/member/delete", async (req, res) => {
 			return false;
 		}
 		return true;
+	})
+	console.log('Removing member on the remover user done');
+
+	console.log('Removing member on the other members');
+	workspaceMembers.forEach(member => {
+		console.log(`Updating: ${member.firstName} ${member.lastName}`);
+		member.subjects.every(subject => {
+			if (subject.id === req.body.ids.subject) {
+				subject.workspaces.every(workspace => {
+					if (workspace.id === req.body.workspace.id) {
+						workspace.members = workspace.members.filter(member => member.id !== req.body.workspace.member.id)
+						workspace.admins = workspace.admins.filter(admin => admin.id !== req.body.workspace.member.id)
+						return false
+					}
+					return true
+				})
+				return false
+			}
+			return true
+		})
+	})
+	console.log('Removing member on the other members done')
+
+	console.log("Removing the workspace on the removed member");
+	userB.subjects.every((subject) => {
+		if (subject.id === req.body.ids.subject) {
+			subject.workspaces = subject.workspaces.filter(
+				(workspace) => workspace.id !== req.body.workspace.id
+			);
+			if (subject.workspaces.length == 0) {
+				subject.createdBy = `${userB.firstName} ${userB.lastName}`;
+				subject.id = bcrypt.hashSync(`${subject.name}${userB.id}${new Date()}`);
+				subject.owned = true;
+				subject.workspaces = [];
+			}
+			return false;
+		}
+		return true;
 	});
-	await userFinal(userA);
+	console.log("Removing the workspace on the removed member done");
+
+	console.log('Adding notification');
+	userA.notifications.unshift(newNotif)
+	userB.notifications.unshift(newNotif2)
+	workspaceMembers.forEach(member => {
+		member.notifications.unshift(newNotif)
+	})
+	console.log('Adding notification done');
+
+	if (membersID.length != 0) {
+		console.log('Finalizing updates on all members');
+		await manyUserFinal([userA, userB, ...workspaceMembers])
+	} else {
+		console.log('Finalizing updates on the remover');
+		await userFinal(userA)
+	}
+	console.log('Finalization complete');
+
+	console.log("Notifying other members realtime");
+	pusher.trigger(`${userB.id}`, "memberRemoved", {
+		ids: {
+			subject: req.body.ids.subject,
+			workspace: req.body.workspace.id,
+			member: req.body.workspace.member.id,
+		},
+		notification: newNotif2,
+	});
+
+	workspaceMembers.forEach((member) => {
+		pusher.trigger(`${member.id}`, "memberRemoved", {
+			ids: {
+				subject: req.body.ids.subject,
+				workspace: req.body.workspace.id,
+				member: req.body.workspace.member.id,
+			},
+			notification: newNotif,
+		});
+	});
+	console.log("Notifying other members realtime done");
+	
+	console.log('Removed member');
+	console.log("--------------------------------");
+
 	res.send({
-		members,
+		memberID: req.body.workspace.member.id
 	});
 });
 
