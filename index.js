@@ -2,7 +2,6 @@ const axios = require("axios")
 const express = require("express")
 const cors = require("cors")
 const bodyParser = require("body-parser")
-const Pusher = require("pusher")
 const sgMail = require("@sendgrid/mail");
 require("dotenv").config({ path: "./vars/.env" });
 const bcrypt = require('bcryptjs')
@@ -10,29 +9,34 @@ const bcrypt = require('bcryptjs')
 const {
 	newMsg,
 	newNotification,
-	newSubject,
-	newWorkspace,
   backURI,
   prisma,
 	resetMsg,
-	backURIfront
+	backURIfront,
+	log
 } = require("./constants");
 const { wake } = require('./wake')
-const { createSubject } = require("./controllers/Subject")
-const { user, userFinal, newUser, manyUserFinal } = require("./controllers/user")
-const { createWorkspace } = require("./controllers/Workspace")
-const { invite, getAllMembers } = require("./controllers/Workspace/Member")
+const { createSubject, deleteSubject } = require("./controllers/Subject")
+const { user, userFinal, newUser, manyUserFinal, getProfile } = require("./controllers/user")
+const { createWorkspace, deleteWorkspace } = require("./controllers/Workspace")
+const { invite, getAllMembers, newMember, kickMember, demoteAdmin } = require("./controllers/Workspace/Member")
 const { notification } = require("./models")
-
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const { newAdmin } = require("./controllers/Workspace/Member/addAdmin")
+const { rejectInvitation, removeInvitation } = require("./controllers/Invitations")
+const { addBoard } = require("./controllers/Workspace/Board")
+const { addSeen, createTask, sendChat, updateTask } = require("./controllers/Task")
+const Pusher = require("pusher");
+const { readNotification, deleteNotification, deleteAllNotification } = require("./controllers/Notification");
 
 const pusher = new Pusher({
-	appId: process.env.pusher_appId,
-	key: process.env.pusher_key,
-	secret: process.env.pusher_secret,
-	cluster: process.env.pusher_cluster,
+	appId: process.env.pusher_appId3,
+	key: process.env.pusher_key3,
+	secret: process.env.pusher_secret3,
+	cluster: process.env.pusher_cluster3,
 	useTLS: true,
 });
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 var app = express();
 app.use(cors());
@@ -47,6 +51,13 @@ startPrisma()
 
 // wake the system
 wake()
+
+process.on("beforeExit", function () {
+	console.log("onbeforeext");
+});
+process.on("exit", function () {
+	console.log("exit fired");
+});
 
 // PORT
 const port = process.env.PORT || 8080;
@@ -96,17 +107,9 @@ app.post("/MainApp/dashboard/subject/create/workspace", async (req, res) => {
 
 // Invite a member to the workspace
 app.post("/MainApp/subject/workspace/invite", async (req, res) => {
-	console.log("creating an invitation")
-  const result = await invite(req)
-  // push to userB about the new invitation
-  pusher.trigger(`${result.userBFinal.id}`, "newInvitation", {
-    invitation: req.body.invitation,
-		notification: result.newNotif,
-	})
-	console.log("created an invitation")
+  const result = await invite(req, pusher)
 	res.send({
-		existing: result.existing,
-		invitation: req.body.invitation,
+		invitation: result,
 	})
 })
 
@@ -114,321 +117,40 @@ app.post("/MainApp/subject/workspace/invite", async (req, res) => {
 app.post(
 	"/MainApp/dashboard/subject/workspace/create/member",
 	async (req, res) => {
-		console.log("accepting an invitation")
-		let subjectToSend;
-		let subjectb;
-		let workspacea;
-
-		const accs = await getAllMembers([req.body.ids.userA, req.body.ids.userB])
-		/** userA is the user being invited */
-		const userA = accs[0].id === req.body.ids.userA ? accs[0] : accs[1]
-
-		/** userB is the inviter */
-		const userB = userA.id === accs[0].id ? accs[1] : accs[0]
-
-		// adding the invited user to the workspace members of the inviter user
-		userB.subjects.every((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.every((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.members.unshift({
-							email: req.body.workspace.member.email,
-							name: req.body.workspace.member.name,
-							profile: req.body.workspace.member.profile,
-							id: req.body.workspace.member.id,
-						});
-						workspacea = workspace;
-						subjectb = subject;
-						return false;
-					}
-					return true;
-				});
-				return false;
-			}
-			return true;
-		});
-
-		let membersID = []
-		userB.subjects.every(subject => {
-			subject.workspaces.every(workspace => {
-				if (workspace.id === req.body.ids.workspace) {
-					// removing the owner in the members first
-					let temp = workspace.members.filter(member => member.id !== userB.id)
-
-					// removing the newly added member
-					temp = temp.filter(member => member.id !== userA.id)
-
-					if (temp.length != 0) {
-						temp.forEach(member => {
-							membersID = [...membersID, member.id]
-						})
-					}
-					return false
-				}
-				return true
-			})
-			return true
-		})
-
-		let workspaceMembers = []
-
-		if (membersID.length != 0) {
-			workspaceMembers = await getAllMembers(membersID)
-		}
-
-
-		let invitationa;
-		userA.invitations = userA.invitations.filter(
-			(invitation) => invitation.id !== req.body.ids.invitation
-		);
-		userB.invitations.every((invitation) => {
-			if (invitation.id === req.body.ids.invitation) {
-				invitation.status = "accepted";
-				invitationa = invitation;
-				return false;
-			}
-			return true;
-		})
-
-		// building a new user-notification for the owner and all workspace members to be notified that the invited user accepted the invitation
-		const newNotif = newNotification(
-			`${userA.firstName} ${userA.lastName} joined in ${invitationa.workspace.name}!`,
-			true,
-			false,
-			"",
-			"Dashboard",
-			"Boards",
-			"",
-			true,
-			userB.id
-		)
-		userB.notifications.unshift(newNotif)
-
-		console.log('adding notification to members')
-		workspaceMembers.forEach(member => {
-			console.log(member.firstName);
-			member.notifications.unshift(newNotif)
-		})
-		console.log('adding notification to members done')
-		
-		// updating all workspace members list too
-		workspaceMembers.forEach(member => {
-			console.log(`Updating ${member.firstName} ${member.lastName}`);
-			member.subjects.every((subject) => {
-				if (subject.id === req.body.ids.subject) {
-					subject.workspaces.every((workspace) => {
-						if (workspace.id === req.body.ids.workspace) {
-							workspace.members.unshift({
-								email: req.body.workspace.member.email,
-								name: req.body.workspace.member.name,
-								profile: req.body.workspace.member.profile,
-								id: req.body.workspace.member.id
-							})
-							return false;
-						}
-						return true;
-					})
-					return false;
-				}
-				return true;
-			})
-		})
-
-		// Check if the subject is already existing
-		let existing = false;
-		userA.subjects.every((subject) => {
-			if (subject.id === subjectb.id) {
-				existing = true;
-				return false;
-			}
-			return true;
-		});
-
-		// if existing just add the new workspace else create and add the new workspace
-		if (existing) {
-			userA.subjects.every((subjecta) => {
-				if (subjecta.id === subjectb.id) {
-					subjecta.workspaces.push(
-						newWorkspace(
-							workspacea.members,
-							workspacea.boards,
-							workspacea.admins,
-							workspacea.color,
-							workspacea.id,
-							workspacea.name,
-							false,
-							workspacea.createdBy
-						)
-					);
-					subjectToSend = subjecta;
-					return false;
-				}
-				return true;
-			})
-		} else {
-			userA.subjects.push(
-				newSubject(
-					subjectb.color,
-					subjectb.id,
-					subjectb.name,
-					false,
-					subjectb.createdBy
-				)
-			);
-			userA.subjects.every((subjecta) => {
-				if (subjecta.id === subjectb.id) {
-					subjecta.workspaces.push(
-						newWorkspace(
-							workspacea.members,
-							workspacea.boards,
-							workspacea.admins,
-							workspacea.color,
-							workspacea.id,
-							workspacea.name,
-							false,
-							workspacea.createdBy
-						)
-					);
-					subjectToSend = subjecta;
-					return false;
-				}
-				return true;
-			});
-		}
-
-		if (workspaceMembers.length != 0) {
-			console.log('Updating all members')
-			await manyUserFinal([userA, userB, ...workspaceMembers]);
-		} else {
-			console.log('Updating invited and inviter')
-			await manyUserFinal([userA, userB])
-		}
-
-		pusher.trigger(`${userB.id}`, "invitationAccepted", {
-			notification: newNotif,
-			invitationID: req.body.ids.invitation,
-			subjectID: req.body.ids.subject,
-			workspaceID: req.body.ids.workspace,
-			member: {
-				email: userA.email,
-				name: `${userA.firstName} ${userA.lastName}`,
-				profile: userA.profile,
-				id: userA.id
-			},
-		})
-
-		if (membersID.length != 0) {
-			workspaceMembers.forEach(member => {
-				pusher.trigger(`${member.id}`, "newMember", {
-					notification: newNotif,
-					subjectID: req.body.ids.subject,
-					workspaceID: req.body.ids.workspace,
-					member: {
-						email: userA.email,
-						name: `${userA.firstName} ${userA.lastName}`,
-						profile: userA.profile,
-						id: userA.id,
-					},
-				});
-			})
-		}
-
-		console.log("accepted an invitation");
+		const result = await newMember(req, pusher)
 		res.send({
-			subject: subjectToSend,
-			invitationID: req.body.ids.invitation,
+			subject: result.subjectToSend,
+			workspace: result.workspaceToSend,
+			invitationID: result.invitationID,
 		});
 	}
-);
+)
 
 // Create new or Add new board to the workspace
-app.post(
-	"/MainApp/dashboard/subject/workspace/create/board",
-	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		const boardToSend = {
-			tasks: [],
-			color: req.body.board.color,
-			createdBy: req.body.board.createdBy,
-			createdOn: new Date().toISOString(),
-			id: req.body.board.id,
-			name: req.body.board.name,
-		};
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.boards.unshift(boardToSend);
-					}
-				});
-			}
-		});
-		await userFinal(userA);
+app.post("/MainApp/dashboard/subject/workspace/create/board", async (req, res) => {
+		const result = await addBoard(req, pusher)
 		res.send({
-			board: boardToSend,
+			board: result,
 		});
 	}
 );
 
 // Create new or Add new Admin to the workspace
 app.post(
-	"/MainApp/dashboard/subject/workspace/create/admin",
+	"/MainApp/dashboard/subject/workspace/admin/add",
 	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.admins.unshift(`${req.body.email}`);
-					}
-				});
-			}
-		});
-		await userFinal(userA);
+		const result = await newAdmin(req, pusher)
 		res.send({
-			admin: req.body.email,
+			admin: result.admin,
 		});
 	}
 );
 
 // Create new or Add new Task to the board
-app.post(
-	"/MainApp/dashboard/subject/workspace/board/create/task",
-	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		let toSend = {};
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.boards.map((board) => {
-							if (board.name === "Todo") {
-								toSend = {
-									members: req.body.task.member,
-									subtasks: [],
-									conversations: [],
-									viewers: [`${userA.firstName} ${userA.lastName}`],
-									createdBy: req.body.task.createdBy,
-									createdOn: new Date(),
-									description: req.body.task.description,
-									dueDateTime: req.body.task.dueDateTime,
-									id: req.body.task.id,
-									isFavorite: false,
-									isSubtask: req.body.task.isSubtask,
-									level: req.body.task.level,
-									name: req.body.task.name,
-									status: "Todo",
-								};
-								board.tasks.unshift(toSend);
-							}
-						});
-					}
-				});
-			}
-		});
-		await userFinal(userA);
+app.post("/MainApp/dashboard/subject/workspace/board/task/create", async (req, res) => {
+		const result = await createTask(req, pusher)
 		res.send({
-			task: toSend,
+			task: result,
 		});
 	}
 );
@@ -564,63 +286,21 @@ app.post(
 );
 
 // Create new or Add new chat to the task
-app.post(
-	"/MainApp/dashboard/subject/workspace/board/task/create/chat",
-	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.boards.map((board) => {
-							if (board.name === req.body.task.status) {
-								board.tasks.map((task) => {
-									if (task.id === req.body.task.id) {
-										task.conversations.unshift({
-											sender: {
-												email: req.body.task.conversation.sender.email,
-												name: req.body.task.conversation.sender.name,
-												profile: req.body.task.conversation.sender.profile,
-											},
-											message: req.body.task.conversation.message,
-											sendAt: new Date(),
-											id: req.body.task.conversation.id,
-										});
-									}
-								});
-							}
-						});
-					}
-				});
-			}
+app.post("/MainApp/dashboard/subject/workspace/board/task/chat/send", async (req, res) => {
+		const result = await sendChat(req, pusher)
+		res.send({
+			chat: result
 		});
-		res.send(await userFinal(userA));
 	}
 );
 
 // Create new or Add new viewer to the task
-app.post(
-	"/MainApp/dashboard/subject/workspace/board/task/create/viewer",
+app.post("/MainApp/dashboard/subject/workspace/board/task/viewer/add",
 	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.boards.map((board) => {
-							if (board.name === req.body.task.status) {
-								board.tasks.map((task) => {
-									if (task.id === req.body.task.id) {
-										task.viewers.unshift(req.body.task.viewer.name);
-									}
-								});
-							}
-						});
-					}
-				});
-			}
+		const result = await addSeen(req, pusher)
+		res.send({
+			viewer: result
 		});
-		res.send(await userFinal(userA));
 	}
 );
 
@@ -681,15 +361,24 @@ app.get("/", async (req, res) => {
 
 // Get all verified users
 app.get("/verifiedUsers", async (req, res) => {
-	res.send(
-		await prisma.accounts.findMany({
-			where: {
-				verified: {
-					equals: true,
-				},
+	log(`Getting ${req.query.count} verified users`)
+	const result = await prisma.accounts.findMany({
+		where: {
+			verified: {
+				equals: true,
 			},
-		})
-	);
+		},
+		select: {
+			id: true,
+			firstName: true,
+			lastName: true,
+			email: true,
+			profile: true
+		},
+		take: parseInt(req.query.count)
+	})
+	log(`Sending ${result.length} verified users`)
+	res.send(result);
 });
 
 // verify email of user
@@ -733,18 +422,11 @@ app.get("/reverify/:id", async (req, res) => {
 });
 
 // get only the id of the user
-app.get('/id', async (req, res) => {
-	const id = await prisma.accounts.findFirst({
-		select: {
-			id: true
-		},
-		where: {
-			email: {
-				equals: req.query.email
-			}
-		}
+app.get('/profile', async (req, res) => {
+	const profile = await getProfile(req)
+	res.send({
+		profile
 	})
-	res.send(id)
 })
 
 // Get all the user's notifications
@@ -798,19 +480,40 @@ app.post("/validUser", async (req, res) => {
 	});
 });
 
+// Gets the user based on the email and send all information except subjects, notification, invitations, lastActive
+app.get("/viewUser", async (req, res) => {
+	log('------------------------------')
+	log('Viewing user')
+	const user = await prisma.accounts.findFirst({
+		where: {
+			email: {
+				equals: req.query.email,
+			},
+		},
+		select: {
+			id: true,
+			firstName: true,
+			lastName: true,
+			age: true,
+			school: true,
+			course: true,
+			gender: true,
+			bio: true,
+			email: true,
+			profile: true
+		}
+	});
+	log(`Viewing ${user.firstName} ${user.lastName}`)
+	res.send({
+		user,
+	});
+});
+
 // Set the notification isRead to true and return it
 app.get("/User/notification", async (req, res) => {
-	const userA = await user(req.query.user);
-	userA.notifications.every((notification) => {
-		if (notification.id === req.query.notification) {
-			notification.isRead = true;
-			return false;
-		}
-		return true;
-	});
-	const finalUser = await userFinal(userA);
+	const result = await readNotification(req)
 	res.send({
-		notifications: finalUser.notifications,
+		id: result.id,
 	});
 });
 
@@ -1052,6 +755,14 @@ app.put("/MainApp/subject/workspace/board/edit", async (req, res) => {
 		},
 	});
 });
+
+// Update a task
+app.put('/MainApp/dashboard/subject/workspace/board/task/edit', async (req, res) => {
+	const result = await updateTask(req, pusher)
+	res.send({
+		task: result.task
+	})
+})
 
 // Leave the workspace
 app.put('/MainApp/subject/workspace/leave', async (req, res) => {
@@ -1351,36 +1062,17 @@ app.put(
 // ###################### DELETE ROUTES ##################
 // Remove or delete a notification in user
 app.delete("/User/delete/notification", async (req, res) => {
-	console.log('Deleting notification')
-	const userA = await user(req.body.ids.user)
-	let notif = notification
-	userA.notifications.every(notificationa => {
-		if (notificationa.id === req.body.ids.notification) {
-			notif = notificationa
-			return false
-		}
-		return true
-	})
-	userA.notifications = userA.notifications.filter(
-		(notif) => notif.id != req.body.ids.notification
-	);
-	await userFinal(userA)
-	console.log(`${notif ? 'Deleted' : 'Error deleting'} notification`)
+	const result = await deleteNotification(req)
 	res.send({
-		error: notif ? false : true,
-		notification: notif
+		id: result.id
 	});
 });
 
 // Remove or delete all notification in user
 app.delete("/User/delete/all/notification", async (req, res) => {
-	console.log("deleting all notification");
-	const userA = await user(req.body.userID);
-	userA.notifications = [];
-	const finalUser = await userFinal(userA);
-	console.log("deleted all notification");
+	const result = await deleteAllNotification(req)
 	res.send({
-		notifications: [],
+		notifications: result,
 	});
 });
 
@@ -1600,246 +1292,25 @@ app.delete("/MainApp/subject/workspace/invitation/cancel", async (req, res) => {
 
 // Remove the accepted/rejected invitation
 app.delete("/MainApp/subject/workspace/invitation/remove", async (req, res) => {
-	console.log("invitation removing");
-	const userA = await user(req.body.ids.user);
-	userA.invitations = userA.invitations.filter(
-		(invitation) => invitation.id !== req.body.ids.invitation
-	);
-	await userFinal(userA);
-	console.log("invitation removed");
+	const result = await removeInvitation(req)
 	res.send({
-		invitationID: req.body.ids.invitation,
+		invitationID: result
 	});
 });
 
 // Reject and delete the invitation
 app.delete("/MainApp/subject/workspace/invitation/reject", async (req, res) => {
-	console.log("rejecting an invitation");
-
-	/** The invited user */
-	const userA = await user(req.body.ids.userA);
-
-	/** The inviter user */
-	const userB = await user(req.body.ids.userB);
-
-	// update status of the invitation into rejected in userB
-	let invitationa;
-	userB.invitations.every((invitation) => {
-		if (invitation.id === req.body.ids.invitation) {
-			invitation.status = "rejected";
-			invitationa = invitation;
-			return false;
-		}
-		return true;
-	});
-
-	// remove or delete the invitation in the userA
-	userA.invitations = userA.invitations.filter(
-		(invitation) => invitation.id !== req.body.ids.invitation
-	);
-
-	// add notification for the inviter that the invitation is rejected
-	const newNotif = newNotification(
-		`${userA.firstName} ${userA.lastName} rejected to join '${invitationa.workspace.name}'`,
-		true,
-		false,
-		"",
-		"Dashboard",
-		"Subjects",
-		"",
-		true,
-		userB.id
-	);
-	userB.notifications.unshift(newNotif);
-
-	await manyUserFinal([userA, userB])
-
-	// push event to userB
-	pusher.trigger(`${userB.id}`, "invitationRejected", {
-		invitationID: req.body.ids.invitation,
-		notification: newNotif,
-	});
-
-	console.log("rejecting an invitation");
-
+	const result = await rejectInvitation(req, pusher)
 	res.send({
-		invitationID: req.body.ids.invitation,
+		invitationID: result.invitationID
 	});
 });
 
 // Remove or delete a member in workspace
 app.delete("/MainApp/subject/workspace/member/delete", async (req, res) => {
-	console.log('--------------------------------');
-	console.log('Removing a member');
-	let workspaceName = ''
-
-	const accs = await getAllMembers([req.body.ids.user, req.body.workspace.member.id])
-	/** Owner or admin of the workspace */
-	const userA = accs[0].id === req.body.ids.user ? accs[0] : accs[1]
-
-	/** The member that will be removed */
-	const userB = accs[0].id === userA.id ? accs[1] : accs[0]
-
-	// get all members of the workspace except userA and userB
-	// remove the userA on the list of the members
-	let membersID = []
-	let workspaceMembers = []
-	console.log('Checking members');
-	userA.subjects.every(subject => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces.every(workspace => {
-				if (workspace.id === req.body.workspace.id) {
-					workspaceName = workspace.name
-					let temp = workspace.members.filter(member => member.id !== userA.id)
-					temp = temp.filter(member => member.id !== userB.id)
-					membersID = [...membersID, ...temp.map(member => {
-						return member.id
-					})]
-					return false
-				}
-				return true
-			})
-			return false
-		}
-		return true
-	})
-	console.log('Checking members done');
-
-	if (membersID.length != 0) {
-		console.log('Getting members');
-		workspaceMembers = await getAllMembers(membersID)
-		console.log('Getting members done');
-	}
-
-	// building a new user-notification to notify all workspace members that a member is removed in the workspace
-	console.log('Building notification');
-	const newNotif = newNotification(
-		`${req.body.workspace.member.name} is removed in ${workspaceName}`,
-		false,
-		false,
-		'',
-		'',
-		'',
-		'',
-		true,
-		userA.id
-	)
-
-	const newNotif2 = newNotification(
-		`You are removed from ${workspaceName}`,
-		false,
-		false,
-		'',
-		'',
-		'',
-		'',
-		true,
-		userB.id
-	)
-	console.log('building notification done')
-
-	// remove the member
-	console.log('Removing member on the remover user');
-	userA.subjects.every((subject) => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces.every((workspace) => {
-				if (workspace.id === req.body.workspace.id) {
-					workspace.members = workspace.members.filter(
-						(member) => member.id != req.body.workspace.member.id
-					)
-					workspace.admins = workspace.admins.filter(admin => admin.id !== req.body.workspace.member.id)
-					return false;
-				}
-				return true;
-			});
-			return false;
-		}
-		return true;
-	})
-	console.log('Removing member on the remover user done');
-
-	console.log('Removing member on the other members');
-	workspaceMembers.forEach(member => {
-		console.log(`Updating: ${member.firstName} ${member.lastName}`);
-		member.subjects.every(subject => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.every(workspace => {
-					if (workspace.id === req.body.workspace.id) {
-						workspace.members = workspace.members.filter(member => member.id !== req.body.workspace.member.id)
-						workspace.admins = workspace.admins.filter(admin => admin.id !== req.body.workspace.member.id)
-						return false
-					}
-					return true
-				})
-				return false
-			}
-			return true
-		})
-	})
-	console.log('Removing member on the other members done')
-
-	console.log("Removing the workspace on the removed member");
-	userB.subjects.every((subject) => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces = subject.workspaces.filter(
-				(workspace) => workspace.id !== req.body.workspace.id
-			);
-			if (subject.workspaces.length == 0) {
-				subject.createdBy = `${userB.firstName} ${userB.lastName}`;
-				subject.id = bcrypt.hashSync(`${subject.name}${userB.id}${new Date()}`);
-				subject.owned = true;
-				subject.workspaces = [];
-			}
-			return false;
-		}
-		return true;
-	});
-	console.log("Removing the workspace on the removed member done");
-
-	console.log('Adding notification');
-	userA.notifications.unshift(newNotif)
-	userB.notifications.unshift(newNotif2)
-	workspaceMembers.forEach(member => {
-		member.notifications.unshift(newNotif)
-	})
-	console.log('Adding notification done');
-
-	if (membersID.length != 0) {
-		console.log('Finalizing updates on all members');
-		await manyUserFinal([userA, userB, ...workspaceMembers])
-	} else {
-		console.log('Finalizing updates on the remover');
-		await userFinal(userA)
-	}
-	console.log('Finalization complete');
-
-	console.log("Notifying other members realtime");
-	pusher.trigger(`${userB.id}`, "memberRemoved", {
-		ids: {
-			subject: req.body.ids.subject,
-			workspace: req.body.workspace.id,
-			member: req.body.workspace.member.id,
-		},
-		notification: newNotif2,
-	});
-
-	workspaceMembers.forEach((member) => {
-		pusher.trigger(`${member.id}`, "memberRemoved", {
-			ids: {
-				subject: req.body.ids.subject,
-				workspace: req.body.workspace.id,
-				member: req.body.workspace.member.id,
-			},
-			notification: newNotif,
-		});
-	});
-	console.log("Notifying other members realtime done");
-	
-	console.log('Removed member');
-	console.log("--------------------------------");
-
+	const result = await kickMember(req, pusher)
 	res.send({
-		memberID: req.body.workspace.member.id
+		memberID: result.memberID
 	});
 });
 
@@ -1869,59 +1340,26 @@ app.delete("/MainApp/subject/workspace/delete/board", async (req, res) => {
 });
 
 // Remove or delete an admin in workspace
-app.delete("/MainApp/subject/workspace/delete/admin", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	let admins = [];
-	userA.subjects.every((subject) => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces.every((workspace) => {
-				if (workspace.id === req.body.ids.workspace) {
-					workspace.admins = workspace.admins.filter(
-						(admin) => admin != req.body.admin
-					);
-					admins = workspace.admins;
-					return false;
-				}
-				return true;
-			});
-			return false;
-		}
-		return true;
-	});
-	await userFinal(userA);
+app.delete("/MainApp/subject/workspace/admin/remove", async (req, res) => {
+	const result = await demoteAdmin(req, pusher)
 	res.send({
-		admins,
+		adminID: result.adminID
 	});
 });
 
 // Remove or delete workspace in subject
 app.delete("/MainApp/subject/workspace/delete", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.subjects.every((subject) => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces = subject.workspaces.filter(
-				(workspace) => workspace.id !== req.body.ids.workspace
-			);
-			return false;
-		}
-		return true;
-	});
-	await userFinal(userA);
+	const result = await deleteWorkspace(req, pusher)
 	res.send({
-		id: req.body.ids.workspace,
+		id: result
 	});
 });
 
 // Remove or delete subject in account
-app.delete("/MainApp/delete/subject", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.subjects = userA.subjects.filter(
-		(subject) => subject.id != req.body.ids.subject
-	);
-	userA.notifications.unshift(req.body.notification);
-	await userFinal(userA);
+app.delete("/MainApp/dashboard/subject/delete", async (req, res) => {
+	const result = await deleteSubject(req, pusher)
 	res.send({
-		error: false,
+		subjectID: result
 	});
 });
 

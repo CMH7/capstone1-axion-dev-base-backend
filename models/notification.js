@@ -1,17 +1,19 @@
 module.exports = {
-  id: '',
-  message: '',
-  isRead: false,
-  anInvitation: false,
-  aMention: false,
-  conversationID: '',
-  fromInterface: {
-    interf: '',
-    subInterface: ''
-  },
-  fromTask: '',
-  for: {
-    self: false,
-    userID: ''
+  notification: {
+    id: '',
+    message: '',
+    isRead: false,
+    anInvitation: false,
+    aMention: false,
+    conversationID: '',
+    fromInterface: {
+      interf: '',
+      subinterface: ''
+    },
+    fromTask: '',
+    for: {
+      self: false,
+      userID: ''
+    }
   }
 }

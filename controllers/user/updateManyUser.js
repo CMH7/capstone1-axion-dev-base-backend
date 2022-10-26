@@ -3,31 +3,31 @@ const { prisma } = require('../../constants')
 module.exports = {
   manyUserFinal: async (/** @type account[] */ accounts) => {
     let trs = []
-    accounts.forEach((a, i) => {
+		accounts.forEach(account => {
       trs = [
 				...trs,
 				prisma.accounts.update({
 					where: {
-						id: accounts[i].id,
+						id: account.id,
 					},
 					data: {
-						invitations: accounts[i].invitations,
-						subjects: accounts[i].subjects,
-						notifications: accounts[i].notifications,
-						age: accounts[i].age,
-						course: accounts[i].course,
-						email: accounts[i].email,
-						firstName: accounts[i].firstName,
-						gender: accounts[i].gender,
-						lastName: accounts[i].lastName,
-						password: accounts[i].password,
-						profile: accounts[i].profile,
-						school: accounts[i].school,
-						useHint: accounts[i].useHint,
-						year: accounts[i].year,
+						invitations: account.invitations,
+						subjects: account.subjects,
+						notifications: account.notifications,
+						age: account.age,
+						course: account.course,
+						email: account.email,
+						firstName: account.firstName,
+						gender: account.gender,
+						lastName: account.lastName,
+						password: account.password,
+						profile: account.profile,
+						school: account.school,
+						useHint: account.useHint,
+						year: account.year,
 						lastActive: new Date(),
-						bio: accounts[i].bio,
-						verified: accounts[i].verified,
+						bio: account.bio,
+						verified: account.verified,
 					},
 				}),
 			];
