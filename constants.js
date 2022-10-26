@@ -105,6 +105,6 @@ module.exports = {
 	log: (/** @type string */ msg) => {
 		console.log(msg);
 	},
-	backURI: "https://axion-back.herokuapp.com",
-	backURIfront: 'https://axion-dev.netlify.app'
+	backURI: "https://axion-backend.herokuapp.com",
+	backURIfront: 'https://axion-dev.me'
 };
