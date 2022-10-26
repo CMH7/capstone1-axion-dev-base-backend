@@ -2,6 +2,7 @@ const { prisma } = require('../../constants')
 
 module.exports = {
   userFinal: async (userCopy) => {
+    console.log(`Final update for: ${userCopy.firstName} ${userCopy.lastName}`);
     const user = await prisma.accounts.update({
       where: {
         id: userCopy.id,
@@ -26,6 +27,14 @@ module.exports = {
         verified: userCopy.verified,
       },
     })
+
+    user
+			? console.log(
+					`Final update for: ${userCopy.firstName} ${userCopy.lastName} done`
+			  )
+			: console.log(
+					`Final update for: ${userCopy.firstName} ${userCopy.lastName} failed`
+			  );
     return user;
   }
 }

@@ -1,13 +1,16 @@
 const { prisma } = require('../../../constants')
 
 module.exports = {
-  getAllMembers: async (/** @type array */ listID) => {
-    const conditions = []
-    for (let i = 0; i < listID.length; i++) {
-      conditions.push({
-        id: listID[i]
-      })
-    }
+  getAllMembers: async (/** @type string[] */ listID) => {
+    let conditions = []
+    listID.forEach(ida => {
+      conditions = [
+				...conditions,
+				{
+					id: ida,
+				},
+			];
+    })
 
     const members = await prisma.accounts.findMany({
       where: {

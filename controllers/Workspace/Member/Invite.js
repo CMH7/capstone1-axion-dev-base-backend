@@ -1,60 +1,58 @@
 const { newNotification } = require("../../../constants");
-const { user, userFinal } = require("../../user")
+const { user, userFinal, manyUserFinal } = require("../../user");
+const { getAllMembers } = require("./listOfMembers");
 
 module.exports = {
-  invite: async (req) => {
-    const userA = await user(req.body.invitation.from.id);
-    const userB = await user(req.body.invitation.to.id);
+  invite: async (req, pusher) => {
+		console.log("-------------------------------");
+		console.log("creating an invitation");
+    const invitation = req.body.invitation;
+    
+    console.log('Getting users data');
+    const accs = await getAllMembers([invitation.from.id, invitation.to.id]);
+    
+    /** The inviter user*/
+    const userA = accs[0].id === invitation.from.id ? accs[0] : accs[1];
+    
+    /** The invited user */
+    const userB = accs[0].id === userA.id ? accs[1] : accs[0];
+    console.log('Getting users data done');
 
-    // check if the user being invited is existing in the workspace if not add else return existing is true
-    let existing = false;
-    userA.subjects.every((subject) => {
-      if (subject.id == req.body.invitation.subjectID) {
-        subject.workspaces.every((workspace) => {
-          if (workspace.id === req.body.invitation.workspace.id) {
-            workspace.members.every((member) => {
-              if (member.id === req.body.invitation.to.id) {
-                existing = true;
-                return false;
-              }
-              return true;
-            });
-            return false;
-          }
-          return true;
-        });
-        return false;
-      }
-      return true;
+    console.log('Adding a new invitation to each users');
+		userA.invitations.unshift(req.body.invitation);
+		userB.invitations.unshift(req.body.invitation);
+    console.log('Adding a new invitation to each users done');
+
+    console.log('Addding notification');
+		const newNotif = newNotification(
+			`${userA.firstName} ${userA.lastName} invites you to join '${req.body.invitation.workspace.name}'`,
+			true,
+			false,
+			"",
+			"Dashboard",
+			"Subjects",
+			"",
+			true,
+			userA.id
+		);
+    userB.notifications.unshift(newNotif);
+    console.log('Adding notification done');
+
+    console.log('Finalizing updates');
+    await manyUserFinal([userA, userB])
+    console.log('Finalizing updates done');
+
+    console.log('Realtime notifying invited user');
+		// push to userB about the new invitation
+		pusher.trigger(`${userB.id}`, "newInvitation", {
+      invitation: invitation,
+			notification: newNotif,
     });
+    console.log('Realtime notifying invited user done');
     
-    if (!existing) {
-      userA.invitations.unshift(req.body.invitation);
-      userB.invitations.unshift(req.body.invitation);
-    
-      const newNotif = newNotification(
-        `${userA.firstName} ${userA.lastName} invites you to join '${req.body.invitation.workspace.name}'`,
-        true,
-        false,
-        "",
-        "Dashboard",
-        "Subjects",
-        "",
-        true,
-        userB.id
-      );
-    
-      userB.notifications.unshift(newNotif);
-    
-      const userAFinal = await userFinal(userA)
-      const userBFinal = await userFinal(userB)
+    console.log("created an invitation");
+		console.log("-------------------------------");
 
-      return {
-        userAFinal,
-        userBFinal,
-        newNotif,
-        existing
-      }
-    }
-  }
+    return invitation
+	}
 }
