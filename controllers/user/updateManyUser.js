@@ -25,7 +25,7 @@ module.exports = {
 						school: account.school,
 						useHint: account.useHint,
 						year: account.year,
-						lastActive: new Date(),
+						lastActive: new Date().toISOString(),
 						bio: account.bio,
 						verified: account.verified,
 					},
