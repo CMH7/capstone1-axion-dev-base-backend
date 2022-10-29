@@ -3,6 +3,7 @@ const { getAllMembers } = require("./listOfMembers");
 const { newMember } = require('./addMember');
 const { kickMember } = require("./removeMember");
 const { demoteAdmin } = require("./removeAdmin");
+const { getUpdateMembersData } = require("./updatedMembersList");
 
 
 module.exports = {
@@ -10,5 +11,6 @@ module.exports = {
   getAllMembers,
   newMember,
   kickMember,
-  demoteAdmin
+  demoteAdmin,
+  getUpdateMembersData
 }
