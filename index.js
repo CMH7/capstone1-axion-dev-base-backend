@@ -17,9 +17,9 @@ const {
 } = require("./constants");
 const { wake } = require('./wake')
 const { createSubject, deleteSubject } = require("./controllers/Subject")
-const { user, userFinal, newUser, manyUserFinal, getProfile } = require("./controllers/user")
+const { user, userFinal, newUser, manyUserFinal, getProfile, viewUser, updateUser } = require("./controllers/user")
 const { createWorkspace, deleteWorkspace } = require("./controllers/Workspace")
-const { invite, getAllMembers, newMember, kickMember, demoteAdmin } = require("./controllers/Workspace/Member")
+const { invite, getAllMembers, newMember, kickMember, demoteAdmin, getUpdateMembersData } = require("./controllers/Workspace/Member")
 const { notification } = require("./models")
 const { newAdmin } = require("./controllers/Workspace/Member/addAdmin")
 const { rejectInvitation, removeInvitation } = require("./controllers/Invitations")
@@ -155,36 +155,6 @@ app.post("/MainApp/dashboard/subject/workspace/board/task/create", async (req, r
 	}
 );
 
-// Create new or Add new member to the task
-app.post(
-	"/MainApp/dashboard/subject/workspace/board/task/create/member",
-	async (req, res) => {
-		const userA = await user(req.body.ids.user);
-		userA.subjects.map((subject) => {
-			if (subject.id === req.body.ids.subject) {
-				subject.workspaces.map((workspace) => {
-					if (workspace.id === req.body.ids.workspace) {
-						workspace.boards.map((board) => {
-							if (board.name === req.body.task.status) {
-								board.tasks.map((task) => {
-									if (task.id === req.body.task.id) {
-										task.members.unshift({
-											email: req.body.task.member.email,
-											name: req.body.task.member.name,
-											profile: req.body.task.member.profile,
-										});
-									}
-								});
-							}
-						});
-					}
-				});
-			}
-		});
-		res.send(await userFinal(userA));
-	}
-);
-
 // Create new or Add new subtask to the task
 app.post(
 	"/MainApp/dashboard/subject/workspace/board/task/create/subtask",
@@ -304,55 +274,6 @@ app.post("/MainApp/dashboard/subject/workspace/board/task/viewer/add",
 	}
 );
 
-// Create new or Add new notification to the user or send a notification to another user
-app.post("/User/create/notification", async (req, res) => {
-	if (req.body.notification.for.self) {
-		const userA = await user(req.body.notification.for.userID);
-		userA.notifications.unshift({
-			id: req.body.notification.id,
-			message: req.body.notification.message,
-			isRead: false,
-			anInvitation: req.body.notification.anInvitation,
-			aMention: req.body.notification.aMention,
-			conversationID: req.body.notification.conversationID,
-			fromInterface: req.body.notification.fromInterface,
-			fromTask: req.body.notification.fromTask,
-			for: req.body.notification.for,
-		});
-		await userFinal(userA);
-		res.send({
-			notification: {
-				id: req.body.notification.id,
-				message: req.body.notification.message,
-				isRead: false,
-				anInvitation: req.body.notification.anInvitation,
-				aMention: req.body.notification.aMention,
-				conversationID: req.body.notification.conversationID,
-				fromInterface: req.body.notification.fromInterface,
-				fromTask: req.body.notification.fromTask,
-				for: req.body.notification.for,
-			},
-		});
-	} else {
-		const userA = await user(req.body.notification.for.userID);
-		userA.notifications.unshift({
-			id: req.body.notification.id,
-			message: req.body.notification.message,
-			isRead: false,
-			anInvitation: req.body.notification.anInvitation,
-			aMention: req.body.notification.aMention,
-			conversationID: req.body.notification.conversationID,
-			fromInterface: req.body.notification.fromInterface,
-			fromTask: req.body.notification.fromTask,
-			for: {
-				self: true,
-				userID: userA.id,
-			},
-		});
-		res.send({ sent: true });
-	}
-});
-
 // ######################## GET ROUTES #########################
 // Gets all user
 app.get("/", async (req, res) => {
@@ -421,7 +342,7 @@ app.get("/reverify/:id", async (req, res) => {
 	});
 });
 
-// get only the id of the user
+// get only the profile based on the id of the user
 app.get('/profile', async (req, res) => {
 	const profile = await getProfile(req)
 	res.send({
@@ -480,32 +401,19 @@ app.post("/validUser", async (req, res) => {
 	});
 });
 
+// Get the metadata of the workspace member
+app.post("/MainApp/subject/workspace/member/updates", async (req, res) => {
+	const result = await getUpdateMembersData(req, prisma)
+	res.send({
+		members: result.members
+	});
+});
+
 // Gets the user based on the email and send all information except subjects, notification, invitations, lastActive
 app.get("/viewUser", async (req, res) => {
-	log('------------------------------')
-	log('Viewing user')
-	const user = await prisma.accounts.findFirst({
-		where: {
-			email: {
-				equals: req.query.email,
-			},
-		},
-		select: {
-			id: true,
-			firstName: true,
-			lastName: true,
-			age: true,
-			school: true,
-			course: true,
-			gender: true,
-			bio: true,
-			email: true,
-			profile: true
-		}
-	});
-	log(`Viewing ${user.firstName} ${user.lastName}`)
+	const resut = await viewUser(req, prisma)
 	res.send({
-		user,
+		user: resut.user
 	});
 });
 
@@ -515,60 +423,6 @@ app.get("/User/notification", async (req, res) => {
 	res.send({
 		id: result.id,
 	});
-});
-
-// get a single user-notification
-app.get("/:userID/notification", async (req, res) => {
-	console.log("getting single notification");
-	const userA = await user(req.params.userID);
-	let notif;
-	userA.notifications.every((notification) => {
-		if (notification.id === req.query.notifID) {
-			notif = notification;
-			return false;
-		}
-		return true;
-	});
-
-	console.log("fetched single notification");
-	res.send({
-		notification: notif,
-	});
-});
-
-// Get the metadata of the workspace member
-// if the current profile pic is not equal to the database then the current profile pic will be overwritten
-app.get("/MainApp/subject/workspace/member/:email", async (req, res) => {
-	const member = await prisma.accounts.findFirst({
-		select: {
-			firstName: true,
-			lastName: true,
-			profile: true,
-		},
-		where: {
-			email: {
-				equals: req.params.email,
-			},
-		},
-	});
-
-	res.send({ member });
-});
-
-// Get the specific task
-app.get("/User/:id", async (req, res) => {
-	const userA = await user(req.params.id);
-	const subject = userA.subjects.filter(
-		(subject) => subject.id === req.query.subjectID
-	);
-	const workspace = subject[0].workspaces.filter(
-		(workspace) => workspace.id === req.query.workspaceID
-	);
-	const board = workspace[0].boards.filter(
-		(status) => status.id === req.query.statusID
-	);
-	const task = board[0].tasks.filter((task) => task.id === req.query.taskID);
-	res.send({ task: task[0] });
 });
 
 // ###################### PUT ROUTES #####################
@@ -582,25 +436,13 @@ app.put("/validUser/edit/profile", async (req, res) => {
 	});
 });
 
-// Update the age of the user
-app.put("/User/edit/age", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.age = req.body.age;
-	const finalUser = await userFinal(userA);
+// Update user basic information
+app.put('/MainApp/myprofile/basic/edit', async (req, res) => {
+	const result = await updateUser(req)
 	res.send({
-		age: req.body.age,
-	});
-});
-
-// Update the year of the user
-app.put("/User/edit/year", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.year = req.body.year;
-	const finalUser = await userFinal(userA);
-	res.send({
-		year: req.body.year,
-	});
-});
+		userData: result
+	})
+})
 
 // Update the useHint setting of the user
 app.put("/User/edit/useHint", async (req, res) => {
@@ -609,36 +451,6 @@ app.put("/User/edit/useHint", async (req, res) => {
 	const finalUser = await userFinal(userA);
 	res.send({
 		useHint: req.body.useHint,
-	});
-});
-
-// Update the school of the user
-app.put("/User/edit/school", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.school = req.body.school;
-	const finalUser = await userFinal(userA);
-	res.send({
-		school: req.body.school,
-	});
-});
-
-// Update the course of the user
-app.put("/User/edit/course", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.course = req.body.course;
-	const finalUser = await userFinal(userA);
-	res.send({
-		course: req.body.course,
-	});
-});
-
-// Update the bio of the user
-app.put("/User/edit/bio", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.bio = req.body.bio;
-	const finalUser = await userFinal(userA);
-	res.send({
-		bio: req.body.bio,
 	});
 });
 
