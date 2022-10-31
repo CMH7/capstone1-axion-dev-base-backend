@@ -24,7 +24,7 @@ const { notification } = require("./models")
 const { newAdmin } = require("./controllers/Workspace/Member/addAdmin")
 const { rejectInvitation, removeInvitation } = require("./controllers/Invitations")
 const { addBoard } = require("./controllers/Workspace/Board")
-const { addSeen, createTask, sendChat, updateTask } = require("./controllers/Task")
+const { addSeen, createTask, sendChat, updateTask, deleteTask } = require("./controllers/Task")
 const Pusher = require("pusher");
 const { readNotification, deleteNotification, deleteAllNotification } = require("./controllers/Notification");
 
@@ -964,23 +964,11 @@ app.delete(
 );
 
 // Remove or delete a task (parent)
-app.delete("/MainApp/subject/workspace/board/delete/task", async (req, res) => {
-	const userA = await user(req.body.ids.user);
-	userA.subjects.map((subject) => {
-		if (subject.id === req.body.ids.subject) {
-			subject.workspaces.map((workspace) => {
-				if (workspace.id === req.body.ids.workspace) {
-					workspace.boards.map((board) => {
-						// Remove task with task by id
-						board.tasks = board.tasks.filter(
-							(task) => task.id != req.body.task.id
-						);
-					});
-				}
-			});
-		}
+app.delete("/MainApp/subject/workspace/board/task/delete", async (req, res) => {
+	const result = await deleteTask(req, pusher)
+	res.send({
+		taskID: result.taskID
 	});
-	res.send(await userFinal(userA));
 });
 
 // Remove or delete a member in task
