@@ -26,6 +26,20 @@ module.exports = {
           subject.workspaces.every(workspace => {
             if (workspace.id === ids.workspace) {
               workspaceName = workspace.name
+              workspace.boards.every(board => {
+                if (board.id === ids.board) {
+                  board.tasks.every((task) => {
+										if (task.id === ids.task) {
+											taskName = task.name;
+											return false;
+										}
+										return true;
+									});
+                  return false
+                }
+                return true
+              })
+
               let temp = workspace.members.filter(member => member.id !== ids.user)
 
               if (temp.length > 0) {
@@ -71,14 +85,6 @@ module.exports = {
 							if (workspace.id === ids.workspace) {
 								workspace.boards.every((board) => {
                   if (board.id === ids.board) {
-                    board.tasks.every(task => {
-                      if (task.id === ids.task) {
-                        taskName = task.name
-                        return false
-                      }
-                      return true
-                    })
-                    
 										board.tasks = board.tasks.filter(
 											(task) => task.id !== ids.task
 										);
