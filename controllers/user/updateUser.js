@@ -115,7 +115,9 @@ module.exports = {
       lastName: req.body.user.lastName,
       age: req.body.user.age,
       school: req.body.user.school,
-      course: req.body.user.course
+      course: req.body.user.course,
+      bio: req.body.user.bio,
+      year: req.body.user.year
     }
   }
 }
