@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js",
-    "start": "node index.js"
+    "dev": "pm2 start index.js && pm2 monit",
+    "start": "pm2 start index.js",
+    "stop": "pm2 stop 0 && pm2 delete 0"
   },
   "author": "V8-3",
   "license": "ISC",
@@ -22,7 +23,7 @@
     "express": "^4.18.1",
     "mongodb": "^4.8.0",
     "mongoose": "^6.4.4",
-    "nodemon": "^2.0.19",
+    "pm2": "^5.2.2",
     "pusher": "^5.1.1-beta"
   },
   "devDependencies": {

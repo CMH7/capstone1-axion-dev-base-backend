@@ -6,6 +6,7 @@ const sgMail = require("@sendgrid/mail");
 require("dotenv").config({ path: "./vars/.env" });
 const bcrypt = require('bcryptjs')
 
+
 const {
 	newMsg,
 	newNotification,
@@ -52,13 +53,6 @@ startPrisma()
 // wake the system
 wake()
 
-process.on("beforeExit", function () {
-	console.log("onbeforeext");
-});
-process.on("exit", function () {
-	console.log("exit fired");
-});
-
 // PORT
 const port = process.env.PORT || 8080;
 
@@ -66,7 +60,7 @@ const port = process.env.PORT || 8080;
 // wake
 app.get('/wake', (req, res) => {
   res.send({})
-})
+}) 
 
 // ########################## POST ROUTES ########################
 
