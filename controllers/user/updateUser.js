@@ -1,42 +1,52 @@
 const { prisma, log } = require('../../constants');
 const { user } = require('./getUser');
 
-module.exports = {
-  userFinal: async (userCopy) => {
+const userFinal = async (userCopy) => {
+  try {
     console.log(`Final update for: ${userCopy.firstName} ${userCopy.lastName}`);
-    const user = await prisma.accounts.update({
-      where: {
-        id: userCopy.id,
-      },
-      data: {
-        invitations: userCopy.invitations,
-        subjects: userCopy.subjects,
-        notifications: userCopy.notifications,
-        age: userCopy.age,
-        course: userCopy.course,
-        email: userCopy.email,
-        firstName: userCopy.firstName,
-        gender: userCopy.gender,
-        lastName: userCopy.lastName,
-        password: userCopy.password,
-        profile: userCopy.profile,
-        school: userCopy.school,
-        useHint: userCopy.useHint,
-        year: userCopy.year,
-        lastActive: new Date().toISOString(),
-        bio: userCopy.bio,
-        verified: userCopy.verified,
-      },
-    })
+		const user = await prisma.accounts.update({
+			where: {
+				id: userCopy.id,
+			},
+			data: {
+				invitations: userCopy.invitations,
+				subjects: userCopy.subjects,
+				notifications: userCopy.notifications,
+				age: userCopy.age,
+				course: userCopy.course,
+				email: userCopy.email,
+				firstName: userCopy.firstName,
+				gender: userCopy.gender,
+				lastName: userCopy.lastName,
+				password: userCopy.password,
+				profile: userCopy.profile,
+				school: userCopy.school,
+				useHint: userCopy.useHint,
+				year: userCopy.year,
+				lastActive: new Date().toISOString(),
+				bio: userCopy.bio,
+				verified: userCopy.verified,
+			},
+		});
 
-    user
+		user
 			? console.log(
 					`Final update for: ${userCopy.firstName} ${userCopy.lastName} done`
 			  )
 			: console.log(
 					`Final update for: ${userCopy.firstName} ${userCopy.lastName} failed`
 			  );
-    return user;
+		return user;
+  } catch (e) {
+    log('Retrying update solo')
+    userFinal(userCopy)
+  }
+  
+}
+
+module.exports = {
+  userFinal: async (userCopy) => {
+    return await userFinal(userCopy)
   },
   updateUser: async (req) => {
     log('------------------------------------------')
