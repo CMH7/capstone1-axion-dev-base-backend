@@ -8,7 +8,7 @@ module.exports = {
   /** Updates the task */
   updateTask: async (req, pusher) => {
     log('-----------------------------------')
-    log('Updating a task')
+    log(`UPDATING TASK: ${req.body.mode}`);
 
     const ids = req.body.ids
     const reqTask = req.body.task

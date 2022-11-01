@@ -4,7 +4,7 @@ const { getAllMembers } = require("../Workspace/Member");
 module.exports = {
   createTask: async (req, pusher) => {
     console.log('--------------------------------');
-    console.log('Creating task');
+    console.log('CREATING TASK');
 
     let membersID = []
     let workspaceMembers = []
@@ -123,7 +123,7 @@ module.exports = {
       console.log('Realtime update on other users done');
     }
 
-		console.log("Creating task done");
+		console.log("CREATING TASK DONE");
     console.log("--------------------------------");
 
     return newTask
